@@ -1,52 +1,62 @@
-# Airport API Automated Testing Suite (Bruno)
+# ✈️ Airport API Automated Testing Suite (Bruno)
 
-This repository serves as a showcase of automated REST API testing using **Bruno**. The project focuses on contract validation, data integrity, and functional logic for the **Airport Gap API**.
+![API Testing](https://img.shields.io/badge/Testing-Automated-green)
+![Bruno](https://img.shields.io/badge/Tool-Bruno-orange)
+![JavaScript](https://img.shields.io/badge/Language-JavaScript-yellow)
+
+This repository serves as a showcase of automated REST API testing using **Bruno**. The project demonstrates a testing strategy including **Happy Path** and **Negative Testing**.
 
 ---
 
-## 🚀 Key Features Demonstrated
-The project consists of three comprehensive test scenarios (requests) covering over **40 individual assertions**:
+## 🚀 Key Features & Test Coverage
+The suite contains over **100 individual assertions** providing 360° coverage of the API's functionality:
 
-### 1. Get All Airports (`/airports`)
-* **Collection Validation:** Verifying array structures and uniqueness of IDs.
-* **Geographic Data:** Validating Latitude/Longitude ranges and realistic altitude values.
-* **Format Consistency:** Using Regular Expressions (Regex) to validate IATA and ICAO airport codes.
+### 1. Functional Testing (Happy Path)
+* **Full CRUD Lifecycle:** Testing `/airports` and authenticated `/favorites` endpoints.
+* **Business Logic:** Accurate distance calculations (KM/Miles/Nautical) with tolerance thresholds.
+* **Data Integrity:** Ensuring ID uniqueness and strict IATA/ICAO formatting via **Regular Expressions**.
 
-### 2. Get Single Airport (`/airports/:id`)
-* **Schema Validation:** Dynamic checking of data types (*string, number, null*) against a predefined schema.
-* **Required Fields:** Ensuring all mandatory attributes are present and non-empty.
-* **Data Integrity:** Verifying that the returned record matches the requested ID.
+### 2. Negative & Security Testing
+* **Unauthorized Access:** Validates that private endpoints (like `/favorites`) correctly return `401 Unauthorized` when a valid token is missing.
+* **Error Handling:** Verifies `404 Not Found` scenarios and ensures the API returns consistent error contracts.
+* **Security Resilience:** Checks that error details do not leak sensitive system information while remaining helpful for the client.
 
-### 3. Calculate Distance (`/airports/distance`)
-* **Logic Testing:** Validating computational output and relationships between objects.
-* **Nested Structures:** Testing deeply nested objects for both "from" and "to" airport attributes.
-* **Metric Verification:** Ensuring numerical precision for kilometers, miles, and nautical miles.
+### 3. Advanced Automation Techniques
+* **Dynamic Request Chaining:** Automatically extracting and setting authentication tokens from response bodies into environment variables (`bru.setEnvVar`).
+* **Contract Testing:** Using iterative schema validation to ensure response structures never break.
+* **HATEOAS Validation:** Checking that pagination links are present and correctly formatted.
+
+---
+
+## 📋 Technical Highlights
+
+| Feature | Description |
+| :--- | :--- |
+| **Performance Gates** | Every request must meet strict response time benchmarks (1000ms - 2000ms). |
+| **Defensive Scripting** | Logic accounts for nullable fields and optional attributes to prevent false negatives. |
+| **Clean Code** | Helper functions and clear constant definitions for high maintainability. |
 
 ---
 
 ## 🛠️ Tech Stack
-* **[Bruno](https://www.usebruno.com/)** – An open-source, offline-first API client.
-* **JavaScript (Chai.js)** – For advanced scripting and custom assertions.
-* **Git/GitHub** – Version control and project management.
-
----
-
-## 📋 Highlights of the Test Scripts
-* **Schema & Type Checking:** Ensuring high API reliability through strict type validation.
-* **Performance Benchmarking:** Verifying server response times (Response time < 2000ms).
-* **Data Quality:** Using JavaScript logic to check for duplicates and whitespace issues.
+* **[Bruno](https://www.usebruno.com/)** – Modern, Git-friendly, offline-first API client.
+* **JavaScript (Chai.js)** – For complex assertions and dynamic scripting.
+* **Git/GitHub** – For version control and professional documentation.
 
 ---
 
 ## 🏃 How to Run the Tests
-1.  **Download and install** [Bruno](https://www.usebruno.com/).
-2.  **Clone this repository:**
+
+1.  **Clone this repository:**
     ```bash
-    git clone [https://github.com/veronikakurhajcova/airport_api_tests_bruno.git](https://github.com/veronikakurhajcova/airport_api_tests_bruno.git)
+    git clone [https://github.com/veronikakurhajcova/airport_gap_with_bruno.git](https://github.com/veronikakurhajcova/airport_gap_with_bruno.git)
     ```
-3.  **Open the collection:** In Bruno, click "Open Collection" and select the project folder.
-4.  **Run the suite:** Use the "Collection Runner" to execute all tests.
+2.  **Open in Bruno:** Select "Open Collection" and point to the cloned folder.
+3.  **Set Up Environment:** * Create a new environment in Bruno.
+    * Set `baseUrl` to `https://airportgap.com/api`.
+    * The `airportgap_token` will be automatically set by the login request.
+4.  **Execution:** Use the **Collection Runner** to execute the complete suite.
 
 ---
 
-> Developed by **Veronika Kurhajcová** as a demonstration of QA Automation skills.
+> 👩‍💻 Developed by **Veronika Kurhajcová**. This project reflects a commitment to quality, security, and professional API automation standards.
