@@ -1,7 +1,7 @@
 meta {
-  name: [HP] POST /favorites
+  name: 02_[HP] POST /favorites
   type: http
-  seq: 8
+  seq: 4
 }
 
 post {
@@ -23,6 +23,10 @@ body:json {
 body:form-urlencoded {
   from: VIE
   to: LHR
+}
+
+tests {
+  bru.setNextRequest("03_[HP] GET /favorites");
 }
 
 settings {

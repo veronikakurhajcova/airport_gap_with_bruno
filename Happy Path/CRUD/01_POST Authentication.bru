@@ -1,5 +1,5 @@
 meta {
-  name: POST Authentication
+  name: 01_POST Authentication
   type: http
   seq: 1
 }
@@ -24,6 +24,10 @@ body:json {
 script:post-response {
   const response = res.getBody();
   bru.setEnvVar("airportgap_token", response.token)
+}
+
+tests {
+  bru.setNextRequest("02_[HP] POST /favorites")
 }
 
 settings {

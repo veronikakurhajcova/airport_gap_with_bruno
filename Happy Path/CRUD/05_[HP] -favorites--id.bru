@@ -1,7 +1,7 @@
 meta {
-  name: [HP] /favorites/:id
+  name: 05_[HP] /favorites/:id
   type: http
-  seq: 7
+  seq: 1
 }
 
 delete {
@@ -30,6 +30,8 @@ tests {
     const body = res.getBody();
     expect(body, `Data object should be empty but got ${body}`).to.not.be.ok;
   })
+  
+  bru.setNextRequest(null);
 }
 
 settings {

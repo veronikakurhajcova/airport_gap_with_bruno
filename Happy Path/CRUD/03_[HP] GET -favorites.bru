@@ -1,7 +1,7 @@
 meta {
-  name: [HP] GET /favorites
+  name: 03_[HP] GET /favorites
   type: http
-  seq: 4
+  seq: 1
 }
 
 get {
@@ -28,7 +28,7 @@ script:post-response {
   bru.setEnvVar("expectedIcao", body.data[0].attributes.airport.icao);
   bru.setEnvVar("expectedLat", body.data[0].attributes.airport.latitude);
   bru.setEnvVar("expectedLong", body.data[0].attributes.airport.longitude);
-  bru.setEnvVar("expectedAltitde", body.data[0].attributes.airport.altitude);
+  bru.setEnvVar("expectedAltitude", body.data[0].attributes.airport.altitude);
   bru.setEnvVar("expectedTimezone", body.data[0].attributes.airport.timezone);
   
   
@@ -212,6 +212,8 @@ tests {
       expect(links[link], `Links "${link}" does not contain ${linksUrl}`).to.include(linksUrl);
     });
   });
+  
+  bru.setNextRequest("04_[HP] PATCH /favorites");
   
   
   

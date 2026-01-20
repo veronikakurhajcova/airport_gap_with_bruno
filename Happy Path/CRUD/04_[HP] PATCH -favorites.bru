@@ -1,7 +1,7 @@
 meta {
-  name: [HP] PATCH /favorites
+  name: 04_[HP] PATCH /favorites
   type: http
-  seq: 6
+  seq: 1
 }
 
 patch {
@@ -178,10 +178,11 @@ tests {
     const actualLong = Number(airportData.longitude);
     const expectedLong = 145.391998;
     const tolerance = 0.00003;
-    expect(actualLat).to.be.closeTo(bru.getEnvVar("expectedLat"), tolerance);
-    expect(actualLong).to.be.closeTo(bru.getEnvVar("expectedLong"), tolerance);
-    expect(Number(air.altitude)).to.equal(bru.getEnvVar("expectedAltitude"));
+    expect(actualLat).to.be.closeTo(Number(bru.getEnvVar("expectedLat")), tolerance);
+    expect(actualLong).to.be.closeTo(Number(bru.getEnvVar("expectedLong")), tolerance);
+    expect(Number(air.altitude)).to.equal(Number(bru.getEnvVar("expectedAltitude")));
   });
+  bru.setNextRequest("05_[HP] /favorites/:id");
 }
 
 settings {
