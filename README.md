@@ -1,62 +1,68 @@
 # ✈️ Airport API Automated Testing Suite (Bruno)
 
-![API Testing](https://img.shields.io/badge/Testing-Automated-green)
-![Bruno](https://img.shields.io/badge/Tool-Bruno-orange)
-![JavaScript](https://img.shields.io/badge/Language-JavaScript-yellow)
-
-This repository serves as a showcase of automated REST API testing using **Bruno**. The project demonstrates a testing strategy including **Happy Path** and **Negative Testing**.
-
----
+Professional API automation project demonstrating a complete **CRUD lifecycle** and **deep data integrity validation** using the [Bruno](https://www.usebruno.com/) API client and JavaScript.
 
 ## 🚀 Key Features & Test Coverage
-The suite contains over **100 individual assertions** providing 360° coverage of the API's functionality:
 
 ### 1. Functional Testing (Happy Path)
-* **Full CRUD Lifecycle:** Testing `/airports` and authenticated `/favorites` endpoints.
-* **Business Logic:** Accurate distance calculations (KM/Miles/Nautical) with tolerance thresholds.
-* **Data Integrity:** Ensuring ID uniqueness and strict IATA/ICAO formatting via **Regular Expressions**.
+* **Full CRUD Workflow:** Seamlessly testing `/airports` and authenticated `/favorites` endpoints.
+* **Dynamic Data Chaining:** Using `bru.setEnvVar()` to capture IDs and attributes from responses and injecting them into subsequent requests.
+* **Business Logic Validation:** * Verification of distance calculations.
+    * IATA/ICAO code format validation using Regular Expressions (Regex).
+    * GPS coordinate range checks and altitude realism.
 
-### 2. Negative & Security Testing
-* **Unauthorized Access:** Validates that private endpoints (like `/favorites`) correctly return `401 Unauthorized` when a valid token is missing.
-* **Error Handling:** Verifies `404 Not Found` scenarios and ensures the API returns consistent error contracts.
-* **Security Resilience:** Checks that error details do not leak sensitive system information while remaining helpful for the client.
+### 2. Advanced Data Integrity & Regression
+* **Baseline State Comparison:** Capturing the initial state of an object and asserting that non-modified attributes (like airport details) remain unchanged after a `PATCH` request.
+* **Geospatial Precision:** Using `.closeTo()` assertions with specific tolerances to handle floating-point precision in GPS coordinates.
+* **Contract Testing:** Comprehensive JSON Schema validation for nested objects (airport details, timezone, and notes).
 
-### 3. Advanced Automation Techniques
-* **Dynamic Request Chaining:** Automatically extracting and setting authentication tokens from response bodies into environment variables (`bru.setEnvVar`).
-* **Contract Testing:** Using iterative schema validation to ensure response structures never break.
-* **HATEOAS Validation:** Checking that pagination links are present and correctly formatted.
+### 3. Negative & Security Testing
+* **Unauthorized Access:** Validating `401 Unauthorized` responses when the Bearer token is missing.
+* **Validation Errors:** Testing `422 Unprocessable Entity` for invalid airport codes or duplicate entries.
+* **Resource Safety:** Ensuring `404 Not Found` for non-existent resource IDs.
 
----
+## 🔐 Security & Environment Setup
+
+This project follows security best practices by using **Secret Variables** for sensitive data. 
+
+1. **Environment Configuration:**
+   - Open the **Environment Manager** in Bruno.
+   - Create a new environment (e.g., `Production`).
+   - Add a variable named `token`. 
+   - Set the type to **Secret** to ensure it is masked and not stored in plain text within the collection files.
+
+2. **Required Variables:**
+   - `baseUrl`: `https://airportgap.com/api`
+   - `token`: `Your_Secret_Bearer_Token`
+
+*Note: All other variables (like `fid`, `expectedId`, etc.) are managed dynamically by the scripts during execution.*
 
 ## 📋 Technical Highlights
 
 | Feature | Description |
 | :--- | :--- |
-| **Performance Gates** | Every request must meet strict response time benchmarks (1000ms - 2000ms). |
-| **Defensive Scripting** | Logic accounts for nullable fields and optional attributes to prevent false negatives. |
-| **Clean Code** | Helper functions and clear constant definitions for high maintainability. |
-
----
+| **Performance Gates** | Each request must respond within **2000ms**. |
+| **Defensive Scripting** | Scripts handle nullable fields and optional attributes to prevent false negatives. |
+| **Clean Code** | Use of helper functions and centralized constants for high maintainability. |
+| **Automated Cleanup** | Every test cycle ends with a `DELETE` request to ensure an idempotent testing environment. |
 
 ## 🛠️ Tech Stack
-* **[Bruno](https://www.usebruno.com/)** – Modern, Git-friendly, offline-first API client.
-* **JavaScript (Chai.js)** – For complex assertions and dynamic scripting.
-* **Git/GitHub** – For version control and professional documentation.
-
----
+* **Bruno** – Modern, Git-friendly API client.
+* **JavaScript (Chai.js)** – For complex assertions and dynamic logic.
+* **AirportGap API** – The target REST API for testing.
 
 ## 🏃 How to Run the Tests
 
-1.  **Clone this repository:**
+1.  **Clone the repository:**
     ```bash
     git clone [https://github.com/veronikakurhajcova/airport_gap_with_bruno.git](https://github.com/veronikakurhajcova/airport_gap_with_bruno.git)
     ```
 2.  **Open in Bruno:** Select "Open Collection" and point to the cloned folder.
-3.  **Set Up Environment:** * Create a new environment in Bruno.
+3.  **Setup Environment:**
+    * Create a new Environment in Bruno.
     * Set `baseUrl` to `https://airportgap.com/api`.
-    * The `airportgap_token` will be automatically set by the login request.
-4.  **Execution:** Use the **Collection Runner** to execute the complete suite.
+    * Add your `token` as a secret variable.
+4.  **Execute:** The collection is designed to run in sequence. The first GET request automatically populates necessary variables (`fid`, `expectedId`, etc.) for the rest of the suite.
 
 ---
-
-> 👩‍💻 Developed by **Veronika Kurhajcová**. This project reflects a commitment to quality, security, and professional API automation standards.
+**Developed by Veronika Kurhajcová** *Focused on building robust, scalable, and maintainable automated testing solutions.*
