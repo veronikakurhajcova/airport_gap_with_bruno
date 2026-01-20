@@ -1,0 +1,40 @@
+meta {
+  name: 05_[HP] DELETE /favorites/:id
+  type: http
+  seq: 1
+}
+
+delete {
+  url: {{baseUrl}}/favorites/{{fid}}
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer token={{airportgap_token}}
+}
+
+tests {
+  const MAX_RESPONSE_TIME_MS = 2000;
+  const endpoint = '/favorites/:id';
+  
+  test("[HP] - Status code - should return 204 - " + endpoint, () => {
+    expect(res.getStatus(), `Expected status code 204 but got ${res.getStatus()}`).to.equal(204)
+  });
+  
+  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
+    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded ${MAX_RESPONSE_TIME_MS}ms`).to.be.below(MAX_RESPONSE_TIME_MS);
+  });
+  
+  test("[HP] - Data object is empty - " + endpoint, () => {
+    const body = res.getBody();
+    expect(body, `Data object should be empty but got ${body}`).to.not.be.ok;
+  })
+  
+  bru.setNextRequest(null);
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
