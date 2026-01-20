@@ -1,0 +1,31 @@
+meta {
+  name: [HP] POST /favorites
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/favorites
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer token={{airportgap_token}}
+}
+
+body:json {
+  {
+    "airport_id": "VIE"
+  }
+}
+
+body:form-urlencoded {
+  from: VIE
+  to: LHR
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

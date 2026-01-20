@@ -1,12 +1,12 @@
 meta {
-  name: [HP] GET /favorites/:id
+  name: [HP] PATCH /favorites
   type: http
-  seq: 5
+  seq: 6
 }
 
-get {
+patch {
   url: {{baseUrl}}/favorites/{{fid}}
-  body: none
+  body: json
   auth: inherit
 }
 
@@ -14,8 +14,10 @@ headers {
   Authorization: Bearer token={{airportgap_token}}
 }
 
-vars:pre-request {
-  id: 22
+body:json {
+  {
+    "note":"Updated note"
+  }
 }
 
 tests {
@@ -25,7 +27,7 @@ tests {
   const airportData = attributes.airport;
   const note = attributes.note;
   const timezone = airportData.timezone;
-  const endpoint = '/favorites/:id';
+  const endpoint = res.getUrl();
   
   // Configuration
   const MAX_RESPONSE_TIME_MS = 2000;
@@ -33,7 +35,7 @@ tests {
   // Validation schema
   const schema = {
     type: "object",
-    required: ["id", "type", "attributes"],
+    required: ["attributes","id", "type", ],
     properties: {
       id: { type: "string" },
       type: { type: "string" }, 
@@ -43,17 +45,17 @@ tests {
         properties: {
           airport: {
             type: "object",
-            required: ["id", "name", "city", "country", "iata", "icao", "latitude", "longitude", "altitude", "timezone"],
+            required: ["altitude","city", "country", "iata", "icao","id", "latitude", "longitude", "name", "timezone"],
             properties: {
-              id: { type: "number" },
-              name: { type: "string" },
+              altitude: { type: "number" },
               city: { type: "string" },
               country: { type: "string" },
               iata: { type: "string" },
               icao: { type: "string" },
+              id: { type: "number" },
               latitude: { type: "string" },
               longitude: { type: "string" },
-              altitude: { type: "number" },
+              name: { type: "string" },
               timezone: { type: "string" }
             }
           },
@@ -152,10 +154,33 @@ tests {
   
   // Test 12: Validate note message
   test("[HP] - Message Validation - note should match expected value - " + endpoint, () => {
-    const expectedNote = bru.getEnvVar("expectedNote");
-    if (note !== null) {
+    const expectedNote = 'Updated note';
       expect(note, `Note "${note}" doesn't match expected "${expectedNote}"`).to.equal(expectedNote);
-    }
+  });
+  
+  // Test 13: Validate data integrity
+  test("[HP] - Data integrity - other data values should remain unchanged", () => {
+    expect(data.id).to.equal(String(bru.getEnvVar("fid")));
+    expect(data.type).to.equal("favorite");
+  
+    const air = attributes.airport;
+    
+    expect(air.id).to.equal(bru.getEnvVar("expectedId"));
+    expect(air.name).to.equal(bru.getEnvVar("expectedName"));
+    expect(air.iata).to.equal(bru.getEnvVar("expectedIata"));
+    expect(air.icao).to.equal(bru.getEnvVar("expectedIcao"));
+    expect(air.city).to.equal(bru.getEnvVar("expectedCity"));
+    expect(air.country).to.equal(bru.getEnvVar("expectedCountry"));
+    expect(air.timezone).to.equal(bru.getEnvVar("expectedTimezone"));
+  
+    const actualLat = Number(airportData.latitude);
+    const expectedLat = -6.081689;
+    const actualLong = Number(airportData.longitude);
+    const expectedLong = 145.391998;
+    const tolerance = 0.00003;
+    expect(actualLat).to.be.closeTo(bru.getEnvVar("expectedLat"), tolerance);
+    expect(actualLong).to.be.closeTo(bru.getEnvVar("expectedLong"), tolerance);
+    expect(Number(air.altitude)).to.equal(bru.getEnvVar("expectedAltitude"));
   });
 }
 
