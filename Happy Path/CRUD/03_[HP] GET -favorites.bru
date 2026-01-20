@@ -213,6 +213,12 @@ tests {
     });
   });
   
+  // Test, že počet vrátených letísk je <= limit
+  const limit = 30;
+  test("[Pagination] Should return no more than limit items", () => {
+      expect(data.length).to.be.at.most(limit);
+  });
+  
   bru.setNextRequest("04_[HP] PATCH /favorites");
   
   

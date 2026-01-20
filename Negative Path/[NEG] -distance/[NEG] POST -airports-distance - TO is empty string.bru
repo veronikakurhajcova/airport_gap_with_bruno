@@ -1,39 +1,44 @@
 meta {
-  name: [NEG] GET /favorites without authentication
+  name: [NEG] POST /airports/distance - TO is empty string
   type: http
-  seq: 1
+  seq: 15
 }
 
-get {
-  url: {{baseUrl}}/favorites
-  body: none
+post {
+  url: {{baseUrl}}/airports/distance
+  body: json
   auth: inherit
 }
 
+body:json {
+  {
+    "from":"VIE",
+    "to":""
+  }
+}
+
 tests {
-  // Test configuration constants
-  const scenario = 'GET favorites without authentication';
-  const endpoint = '/favourites';
-  const MAX_RESPONSE_TIME = 1000;
+  // Test configuration
+  const scenario = 'TO is empty string';
+  const endpoint = '/airports/distance';
+  const MAX_RESPONSE_TIME = 2000;
   const requiredErrorKeys = ["status", "title", "detail"];
-  const EXPECTED_ERROR_MSG = "You are not authorized to perform the requested action.";
-  
-  // Extract response data for testing
+  const EXPECTED_ERROR_MSG = "Please enter valid 'from' and 'to' airports."; 
   const body = res.getBody();
   const errors = body.errors;
   const contentType = res.getHeader("content-type");
   
-  // Test 1: Verify HTTP status code
-  test(`[NEG] - ${scenario} - Status Code - should return 401 - ${endpoint}`, () => {
-    expect(res.getStatus(), `Status code should be 401 but got ${res.getStatus()}`).to.eql(401);
+  // Test 1: Verify HTTP status code when 'to' is missing
+  test(`[NEG] - ${scenario} - Status Code - should return 422  - ${endpoint}`, () => {
+    expect(res.getStatus(), `Expected status code 422 but got ${res.getStatus()}`).to.equal(422);
   });
   
-  // Test 2: Verify response time meets performance requirements
+  // Test 2: Verify response time
   test(`[NEG] - ${scenario} - Performance - should respond within acceptable time - ${endpoint}`, () => {
     expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded limit of ${MAX_RESPONSE_TIME}ms`).to.be.below(MAX_RESPONSE_TIME);
   });
   
-  // Test 3: Verify response returns correct content type header
+  // Test 3: Verify Content-Type header
   test(`[NEG] - ${scenario} - Headers - should return JSON content type - ${endpoint}`, () => {
     expect(contentType, `Expected Content-Type to include "application/json" but got "${contentType}"`).to.include("application/json");
   });
@@ -61,14 +66,14 @@ tests {
     });
   });
   
-  // Test 8: Verify all error fields are of string type
+  // Test 8: Verify all error fields are strings
   test(`[NEG] - ${scenario} - Schema Validation - all error fields should be strings - ${endpoint}`, () => {
     expect(errors[0].status, `Field "status" should be a string`).to.be.a('string');
     expect(errors[0].title, `Field "title" should be a string`).to.be.a('string');
     expect(errors[0].detail, `Field "detail" should be a string`).to.be.a('string');
   });
   
-  // Test 9:Verify error fields are not empty strings
+  // Test 9: Verify error fields are not empty
   test(`[NEG] - ${scenario} - Schema Validation - error fields should not be empty - ${endpoint}`, () => {
     expect(errors[0].status.length, `Field "status" should not be empty`).to.be.greaterThan(0);
     expect(errors[0].title.length, `Field "title" should not be empty`).to.be.greaterThan(0);
@@ -77,11 +82,11 @@ tests {
   
   // Test 10: Verify error status code matches expected value
   test(`[NEG] - ${scenario} - Error Validation - should return correct error status - ${endpoint}`, () => {
-    expect(errors[0].status, `Expected error status to be "401" but got "${errors[0].status}"`).to.eql("401");
+    expect(errors[0].status, `Expected error status to be "422" but got "${errors[0].status}"`).to.eql("422");
   });
   
   // Test 11: Verify error detail message contains expected text
-  test(`[NEG] - ${scenario} - Error Validation - should include error message - ${endpoint}`, () => {
+  test(`[NEG] - ${scenario} - Error Validation - should include invalid message - ${endpoint}`, () => {
     expect(errors[0].detail, `Expected error detail to include "${EXPECTED_ERROR_MSG}" but got "${errors[0].detail}"`).to.include(EXPECTED_ERROR_MSG);
   });
 }

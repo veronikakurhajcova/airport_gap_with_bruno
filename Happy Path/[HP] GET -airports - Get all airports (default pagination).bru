@@ -182,7 +182,14 @@ tests {
     }
   });
   
-  // Test 18: Verify consistency of all records
+  // Test 18: Validation 30 airports per page
+  test("[HP] - Pagination -  should return no more than limit items", () => {
+    const data = res.getBody().data;
+    const limit = 30;
+    expect(data.length, `Pagination should include ${limit} airports per page but we got ${data.length} per page`).to.equal(limit);
+  });
+  
+  // Test 19: Verify consistency of all records
   test("[HP] - Data Consistency - all airports should have consistent structure - " + endpoint, () =>  {
     body.data.forEach((airport, index) => {
       // Check required keys
@@ -196,6 +203,8 @@ tests {
       });
     });
   });
+  
+  
 }
 
 settings {

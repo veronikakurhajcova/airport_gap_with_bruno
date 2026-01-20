@@ -1,18 +1,18 @@
 meta {
-  name: [NEG] GET /airports - Nonexistent Airport
+  name: [NEG] GET /airports:/id - Negative id
   type: http
   seq: 2
 }
 
 get {
-  url: {{baseUrl}}/airports/nonexistent123
+  url: {{baseUrl}}/airports/{{negativeId}}
   body: none
   auth: inherit
 }
 
 tests {
   // Test configuration
-  const endpoint = '/airports/{invalid_id}';
+  const endpoint = '/airports/{negative_id}';
   const MAX_RESPONSE_TIME = 1000;
   const requiredErrorKeys = ["status", "title", "detail"];
   const EXPECTED_ERROR_MSG = "not be found";
