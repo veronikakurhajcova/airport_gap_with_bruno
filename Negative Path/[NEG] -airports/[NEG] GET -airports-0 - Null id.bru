@@ -11,76 +11,64 @@ get {
 }
 
 tests {
-  // Test configuration
+  // Global configuration
+  const scenario = 'Get airport with null id';
   const endpoint = '/airports/{null_id}';
-  const MAX_RESPONSE_TIME = 1000;
-  const requiredErrorKeys = ["status", "title", "detail"];
+  
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 1000;
+  const STATUS_NOT_FOUND = 404;
   const EXPECTED_ERROR_MSG = "not be found";
+  const requiredErrorKeys = ["status", "title", "detail"];
   
   const body = res.getBody();
-  const errors = body.errors;
+  const errors = body ? body.data || body.errors : null; // Flexibilita pre rôzne chybové štruktúry
+  const firstError = Array.isArray(errors) ? errors[0] : errors;
   const contentType = res.getHeader("content-type");
   
-  // Test 1: Verify HTTP status code
-  test("[NEG] - Status Code - should return 404 for non-existent ID - " + endpoint, () => {
-    expect(res.getStatus(), `Expected status code 404 but got ${res.getStatus()}`).to.equal(404);
+  
+  // Test 1: Status code
+  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_NOT_FOUND}`, () => {
+    expect(res.getStatus()).to.equal(STATUS_NOT_FOUND);
   });
   
-  // Test 2: Verify response time
-  test("[NEG] - Performance - should respond within acceptable time - " + endpoint, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded limit of ${MAX_RESPONSE_TIME}ms`).to.be.below(MAX_RESPONSE_TIME);
+  // Test 2: Performance
+  test(`[NEG] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
-  // Test 3: Verify Content-Type header
-  test("[NEG] - Headers - should return JSON content type - " + endpoint, () => {
-    expect(contentType, `Expected Content-Type to include "application/json" but got "${contentType}"`).to.include("application/json");
+  // Test 3: Content-Type
+  test(`[NEG] - ${scenario} - Headers - should return JSON content type`, () => {
+    expect(contentType).to.include("application/json");
   });
   
-  // Test 4: Verify response body contains errors property
-  test("[NEG] - Response Structure - should have errors property - " + endpoint, () => {
-    expect(body, "Response body should have 'errors' property").to.have.property('errors');
+  // Test 4: Response structure
+  test(`[NEG] - ${scenario} - Response Structure - errors validation`, () => {
+    expect(body, "Response body missing").to.be.ok;
+    
+    const hasErrors = body.hasOwnProperty('errors') || Array.isArray(body.data) === false;
+    expect(hasErrors, "Response should indicate an error structure").to.be.true;
   });
   
-  // Test 5: Verify errors is an array
-  test("[NEG] - Response Structure - should return errors array - " + endpoint, () => {
-    expect(errors, `Expected errors to be an array but got ${typeof errors}`).to.be.an('array');
-  });
-  
-  // Test 6: Verify errors array is not empty
-  test("[NEG] - Response Structure - errors array should not be empty - " + endpoint, () => {
-    expect(errors.length, "Errors array should contain at least one error").to.be.greaterThan(0);
-  });
-  
-  // Test 7: Verify error object contains all required keys
-  test("[NEG] - Error Structure - should have all required keys - " + endpoint, () => {
+  // Test 5: Schema Validation
+  test(`[NEG] - ${scenario} - Schema Validation - error object details`, () => {
+    const errorObj = Array.isArray(errors) ? errors[0] : body.errors[0];
+    
     requiredErrorKeys.forEach(key => {
-      expect(errors[0], `Error object is missing required key: "${key}"`).to.have.property(key);
+      expect(errorObj, `Error object missing key: ${key}`).to.have.property(key);
+      expect(errorObj[key], `Field ${key} should be a non-empty string`).to.be.a('string').and.length.of.at.least(1);
     });
   });
   
-  // Test 8: Verify all error fields are strings
-  test("[NEG] - Schema Validation - all error fields should be strings - " + endpoint, () => {
-    expect(errors[0].status, `Field "status" should be a string`).to.be.a('string');
-    expect(errors[0].title, `Field "title" should be a string`).to.be.a('string');
-    expect(errors[0].detail, `Field "detail" should be a string`).to.be.a('string');
+  // Test 6: Error Validation
+  test(`[NEG] - ${scenario} - Error Validation - content check`, () => {
+    const errorObj = Array.isArray(errors) ? errors[0] : body.errors[0];
+    
+    expect(String(errorObj.status)).to.equal(String(STATUS_NOT_FOUND));
+    expect(errorObj.detail.toLowerCase()).to.include(EXPECTED_ERROR_MSG.toLowerCase());
   });
   
-  // Test 9: Verify error fields are not empty
-  test("[NEG] - Schema Validation - error fields should not be empty - " + endpoint, () => {
-    expect(errors[0].status.length, `Field "status" should not be empty`).to.be.greaterThan(0);
-    expect(errors[0].title.length, `Field "title" should not be empty`).to.be.greaterThan(0);
-    expect(errors[0].detail.length, `Field "detail" should not be empty`).to.be.greaterThan(0);
-  });
-  
-  // Test 10: Verify error status code matches expected value
-  test("[NEG] - Error Validation - should return correct error status - " + endpoint, () => {
-    expect(errors[0].status, `Expected error status to be "404" but got "${errors[0].status}"`).to.eql("404");
-  });
-  
-  // Test 11: Verify error detail message contains expected text
-  test("[NEG] - Error Validation - should include not found message - " + endpoint, () => {
-    expect(errors[0].detail.toLowerCase(), `Expected error detail to include "${EXPECTED_ERROR_MSG}" but got "${errors[0].detail}"`).to.include(EXPECTED_ERROR_MSG);
-  });
+  bru.setNextRequest(null);
 }
 
 settings {

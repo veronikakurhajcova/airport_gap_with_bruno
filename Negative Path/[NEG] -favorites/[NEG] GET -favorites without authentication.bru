@@ -1,31 +1,24 @@
 meta {
-  name: [NEG] POST /airports/distance - FROM has special characters
+  name: [NEG] GET /favorites without authentication
   type: http
-  seq: 12
+  seq: 1
 }
 
-post {
-  url: {{baseUrl}}/airports/distance
-  body: json
+get {
+  url: {{baseUrl}}/favorites
+  body: none
   auth: inherit
-}
-
-body:json {
-  {
-    "from":"!@#",
-    "to":"LHR"
-  }
 }
 
 tests {
   // Global configuration
-  const scenario = 'FROM has special characters';
-  const endpoint = '/airports/distance';
+  const scenario = 'GET favorites without authentication';
+  const endpoint = '/favourites';
   
   // Constant variables
-  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
-  const STATUS_UNPROCESSABLE_ENTITY = 422;
-  const EXPECTED_ERROR_MSG = "Please enter valid 'from' and 'to' airports.";
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 1000;
+  const STATUS_UNAUTHORIZED = 401;
+  const EXPECTED_ERROR_MSG = "You are not authorized to perform the requested action.";
   const requiredErrorKeys = ["status", "title", "detail"];
   
   const body = res.getBody();
@@ -34,8 +27,8 @@ tests {
   const contentType = res.getHeader("content-type");
   
   // Test 1: Status code
-  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_UNPROCESSABLE_ENTITY}`, () => {
-    expect(res.getStatus(), `API should reject special characters in IATA codes`).to.equal(STATUS_UNPROCESSABLE_ENTITY);
+  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_UNAUTHORIZED}`, () => {
+    expect(res.getStatus(), `Protected endpoint must return 401 when no token is provided`).to.equal(STATUS_UNAUTHORIZED);
   });
   
   // Test 2: Performance
@@ -55,16 +48,16 @@ tests {
   });
   
   // Test 5: Schema Validation
-  test(`[NEG] - ${scenario} - Schema Validation - error object consistency`, () => {
+  test(`[NEG] - ${scenario} - Schema Validation - error object details`, () => {
     requiredErrorKeys.forEach(key => {
       expect(firstError, `Missing key in error object: ${key}`).to.have.property(key);
       expect(firstError[key], `Field ${key} should be a non-empty string`).to.be.a('string').and.length.of.at.least(1);
     });
   });
   
-  // Test 6: Error Validation
+  // Test 6: Error Content Validation
   test(`[NEG] - ${scenario} - Error Validation - content check`, () => {
-    expect(String(firstError.status)).to.equal(String(STATUS_UNPROCESSABLE_ENTITY));
+    expect(String(firstError.status)).to.equal(String(STATUS_UNAUTHORIZED));
     expect(firstError.detail).to.include(EXPECTED_ERROR_MSG);
   });
   

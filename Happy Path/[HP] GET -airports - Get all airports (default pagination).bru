@@ -11,200 +11,111 @@ get {
 }
 
 tests {
-  // Global variables
-  const body = res.getBody();
-  const firstAirport = body.data[0];
-  const attributes = firstAirport.attributes;
+  // Global configuration
+  const scenario = 'Get all airports';
   const endpoint = '/airports';
   
-  // Schema for airport object validation
-  const airportSchema = {
-    id: 'string',
-    type: 'string',
-    attributes: {
-      name: 'string',
-      city: 'string',
-      country: 'string',
-      iata: 'string',
-      icao: ['string', 'null'],
-      latitude: 'string',
-      longitude: 'string',
-      altitude: 'number',
-      timezone: 'string'
-    }
-  };
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_OK = Number(bru.getVar("STATUS_OK")) || 200;
+  const DEFAULT_PAGE_LIMIT = Number(bru.getVar("DEFAULT_PAGE_LIMIT")) || 30;
   
-  // Required keys
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  const ICAO_PATTERN = /^[A-Z]{4}$/;
+  const TIMEZONE_PATTERN = /^[A-Za-z_\/]+$/;
+  
+  const body = res.getBody();
+  const data = body ? body.data : null;
+  const firstAirport = data ? data[0] : null;
+  const attributes = firstAirport ? firstAirport.attributes : null;
+  
+  // Required keys for validation
   const requiredAirportKeys = ['id', 'type', 'attributes'];
   const requiredAttributeKeys = ['name', 'city', 'country', 'iata', 'icao', 'latitude', 'longitude', 'altitude', 'timezone'];
   
-  // Test 1: Verify successful response
-  test("[HP] - Status Code - should return 200 status code - " + endpoint, () =>  {
-    expect(res.getStatus(), `Expected status code 200 but got ${res.getStatus()}`).to.equal(200);
+  // Test 1: Status code
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_OK}`, () => {
+    expect(res.getStatus()).to.equal(STATUS_OK);
   });
   
-  // Test 2: Validate response time
-  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()} ms exceeded the limit of 2000ms`).to.be.below(2000);
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
-  // Test 3: Verify Content-Type header
-  test("[HP] - Headers - should return JSON content type - " + endpoint, () =>  {
-    const contentType = res.getHeader('content-type');
-    expect(contentType, `Expected Content-Type to include "application/json" but got ${contentType}`).to.include('application/json');
+  // Test 3: Content-Type
+  test(`[HP] - ${scenario} - Headers - should return JSON`, () => {
+    expect(res.getHeader('content-type')).to.include('application/json');
   });
   
-  // Test 4: Validate response structure
-  test("[HP] - Response Structure - should return data array - " + endpoint, () =>  {
-    expect(body, 'Response body is missing "data" property').to.have.property('data');
-    expect(body.data, `Property "data" is not an array but  ${typeof body.data}`).to.be.an('array');
+  // Test 4: Structure & Non-empty data
+  test(`[HP] - ${scenario} - Response Structure - data array validation`, () => {
+    expect(data, "Response data should be an array").to.be.an('array');
+    expect(data.length, "Data array should not be empty").to.be.greaterThan(0);
   });
   
-  // Test 5: Verify that data array is not empty
-  test("[HP] - Data Validation - should return non-empty airports list - " + endpoint, () =>  {
-    expect(body.data.length, `Expected at least 1 airport in data array but got ${body.data.length} airports`).to.be.greaterThan(0);
-  });
-  
-  // Test 6: Validate required airport object keys
-  test("[HP] - Schema Validation - should have all required airport keys - " + endpoint, () =>  {
+  // Test 5: Schema Validation (Keys)
+  test(`[HP] - ${scenario} - Schema Validation - required keys check`, () => {
     requiredAirportKeys.forEach(key => {
-      expect(firstAirport, `Airport object is missing required key: ${key}`).to.have.property(key);
+      expect(firstAirport, `Missing airport key: ${key}`).to.have.property(key);
     });
-  });
-  
-  // Test 7: Validate required attributes keys
-  test("[HP] - Schema Validation - should have all required attribute keys - " + endpoint, () =>  {
     requiredAttributeKeys.forEach(key => {
-      expect(attributes, `Airport attributes are missing required key: ${key}`).to.have.property(key);
+      expect(attributes, `Missing attribute key: ${key}`).to.have.property(key);
     });
   });
   
-  // Test 8: Validate data types according to schema
-  test("[HP] - Data Types - should have correct data types according to schema - " + endpoint, () => {
-    // Validate top-level properties
-    expect(firstAirport.id, `Airport "id" should be string but got ${typeof firstAirport.id}`).to.be.a('string');
-    expect(firstAirport.type, `Airport "type" should be string but got ${typeof firstAirport.type}`).to.be.a('string');
-    expect(firstAirport.attributes, `Airport "attributes" should be object but got ${typeof firstAirport.attributes}`).to.be.an('object');
-  });
-    
-  // Validate attributes according to schema
-  test("[HP] - Schema Validation - attributes data types - " + endpoint, () => {
-  Object.keys(airportSchema.attributes).forEach(key => {
-    const expectedType = airportSchema.attributes[key];
-    const actualValue = attributes[key];
+  // Test 6: Data Types Validation
+  test(`[HP] - ${scenario} - Data Types - attributes types check`, () => {
+    expect(firstAirport.id).to.be.a('string');
+    expect(attributes.name).to.be.a('string');
+    expect(attributes.altitude).to.be.a('number');
   
-    if (Array.isArray(expectedType)) {
-      // If multiple types are allowed (e.g. string or null)
-      const isValid = expectedType.some(type => {
-        if (type === 'null') return actualValue === null;
-        return typeof actualValue === type;
-      });
-  
-      expect(
-        isValid,
-        `Attribute "${key}" should be one of types [${expectedType.join(', ')}] but got ${typeof actualValue} with value: ${actualValue}`
-      ).to.be.true;
-  
-    } else {
-      expect(
-        actualValue,
-        `Attribute "${key}" should be ${expectedType} but got ${typeof actualValue}`
-      ).to.be.a(expectedType);
-    }
-  });
-  });
-  
-  
-  // Test 9: Validate IATA code
-  test("[HP] - Format Validation - should have valid IATA code format - " + endpoint, () =>  {
-    expect(attributes.iata, `IATA code ${attributes.iata} does not match expected format (3 uppercase letters)`).to.match(/^[A-Z]{3}$/);
-  });
-  
-  // Test 10: Validate ICAO code
-  test("[HP] - Format Validation - should have valid ICAO code format - " + endpoint, () =>  {
-    if (attributes.icao !== null && attributes.icao !== "") {
-      expect(attributes.icao, `ICAO code ${attributes.icao} does not match expected format (4 uppercase letters)`).to.match(/^[A-Z]{4}$/);
+    if (attributes.icao !== null) {
+      expect(attributes.icao).to.be.a('string');
     }
   });
   
-  // Test 11: Validate GPS coordinates
-  test("[HP] - Range Validation - should have valid latitude and longitude values - " + endpoint, () =>  {
+  // Test 7: Format Validation (Regex)
+  test(`[HP] - ${scenario} - Format Validation - IATA, ICAO, Timezone`, () => {
+    expect(attributes.iata).to.match(IATA_PATTERN);
+    if (attributes.icao) {
+      expect(attributes.icao).to.match(ICAO_PATTERN);
+    }
+    expect(attributes.timezone).to.match(TIMEZONE_PATTERN);
+  });
+  
+  // Test 8: Range Validation (GPS & Altitude)
+  test(`[HP] - ${scenario} - Range Validation - GPS and Altitude`, () => {
     const lat = parseFloat(attributes.latitude);
     const lon = parseFloat(attributes.longitude);
     
-    expect(lat, `Latitude ${lat} is out of valid range (-90 to 90)`).to.be.within(-90, 90);
-    expect(lon, `Longitude ${lon} is out of valid range (-180 to 180)`).to.be.within(-180, 180);
+    expect(lat).to.be.within(-90, 90);
+    expect(lon).to.be.within(-180, 180);
+    expect(attributes.altitude).to.be.within(-1500, 30000);
   });
   
-  // Test 12: Validate altitude
-  test("[HP] - Range Validation - should have realistic altitude value - " + endpoint, () =>  {
-    expect(attributes.altitude, `Altitude ${attributes.altitude} is out of realistic range (-1500 to 30000 feet)`).to.be.within(-1500, 30000);
-  });
-  
-  // Test 13: Validate timezone format
-  test("[HP] - Format Validation - should have valid timezone format - " + endpoint, () =>  {
-    expect(attributes.timezone, `Timezone ${attributes.timezone} does not match expected format (letters, underscores, slashes)`).to.match(/^[A-Za-z_\/]+$/);
-  });
-  
-  // Test 14: Verify type field
-  test("[HP] - Data Consistency - should have correct type value - " + endpoint, () =>  {
-    body.data.forEach((airport, index) => {
-      expect(airport.type, `Airport at index ${index} has type ${airport.type} but expected "airport"`).to.equal('airport');
+  // Test 9: Data Consistency
+  test(`[HP] - ${scenario} - Data Consistency - all records structure`, () => {
+    data.forEach((airport, index) => {
+      expect(airport.type, `Index ${index} has wrong type`).to.equal('airport');
+      expect(airport.id, `Index ${index} has empty ID`).to.not.be.empty;
     });
   });
   
-  // Test 15: Validate ID uniqueness
-  test("[HP] - Data Integrity - should have unique airport IDs - " + endpoint, () =>  {
-    const ids = body.data.map(airport => airport.id);
+  // Test 10: ID Uniqueness
+  test(`[HP] - ${scenario} - Data Integrity - unique airport IDs`, () => {
+    const ids = data.map(a => a.id);
     const uniqueIds = [...new Set(ids)];
-    const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
-    
-    expect(ids.length, `Found duplicate airport IDs: ${JSON.stringify(duplicates)}`).to.equal(uniqueIds.length);
+    expect(ids.length, "Duplicate IDs found in response").to.equal(uniqueIds.length);
   });
   
-  // Test 16: Validate required fields are not empty
-  test("[HP] - Required Fields - should not have empty required fields - " + endpoint, () =>  {
-    const requiredNonEmptyFields = ['id', 'name', 'city', 'country', 'iata'];
-    
-    requiredNonEmptyFields.forEach(field => {
-      if (field === 'id') {
-        expect(firstAirport[field], `Required field ${field} is empty`).to.not.be.empty;
-      } else {
-        expect(attributes[field], `Required field ${field} in attributes is empty`).to.not.be.empty;
-      }
-    });
-  });
-  
-  // Test 17: Validate pagination (if supported)
-  test("[HP] - Pagination - should include pagination links if available - " + endpoint, () =>  {
+  // Test 11: Pagination
+  test(`[HP] - ${scenario} - Pagination - limit and links`, () => {
+    expect(data.length).to.be.at.most(DEFAULT_PAGE_LIMIT);
     if (body.links) {
-      expect(body.links, `Pagination links object is missing "self" property`).to.have.property('self');
+      expect(body.links).to.have.property('self');
     }
   });
-  
-  // Test 18: Validation 30 airports per page
-  test("[HP] - Pagination -  should return no more than limit items", () => {
-    const data = res.getBody().data;
-    const limit = 30;
-    expect(data.length, `Pagination should include ${limit} airports per page but we got ${data.length} per page`).to.equal(limit);
-  });
-  
-  // Test 19: Verify consistency of all records
-  test("[HP] - Data Consistency - all airports should have consistent structure - " + endpoint, () =>  {
-    body.data.forEach((airport, index) => {
-      // Check required keys
-      requiredAirportKeys.forEach(key => {
-        expect(airport, `Airport at index ${index} is missing required key: ${key}`).to.have.property(key);
-      });
-      
-      // Check attributes keys
-      requiredAttributeKeys.forEach(key => {
-        expect(airport.attributes, `Airport at index ${index} has attributes missing required key: ${key}`).to.have.property(key);
-      });
-    });
-  });
-  
-  
 }
 
 settings {

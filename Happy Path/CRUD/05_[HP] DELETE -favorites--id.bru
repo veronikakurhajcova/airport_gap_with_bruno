@@ -1,7 +1,7 @@
 meta {
   name: 05_[HP] DELETE /favorites/:id
   type: http
-  seq: 1
+  seq: 4
 }
 
 delete {
@@ -15,21 +15,34 @@ headers {
 }
 
 tests {
-  const MAX_RESPONSE_TIME_MS = 2000;
+  // Global configuration
+  const scenario = 'Delete favorite airport';
   const endpoint = '/favorites/:id';
   
-  test("[HP] - Status code - should return 204 - " + endpoint, () => {
-    expect(res.getStatus(), `Expected status code 204 but got ${res.getStatus()}`).to.equal(204)
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_NO_CONTENT = 204; // 
+  
+  // Test 1: Status code
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_NO_CONTENT} - ${endpoint}`, () => {
+    expect(res.getStatus(), `Expected status code ${STATUS_NO_CONTENT} but got ${res.getStatus()}`).to.equal(STATUS_NO_CONTENT);
   });
   
-  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - should respond within acceptable time - ${endpoint}`, () => {
     expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded ${MAX_RESPONSE_TIME_MS}ms`).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
-  test("[HP] - Data object is empty - " + endpoint, () => {
+  // Test 3: Empty body validation
+  test(`[HP] - ${scenario} - Response Structure - Body should be empty for 204 - ${endpoint}`, () => {
     const body = res.getBody();
-    expect(body, `Data object should be empty but got ${body}`).to.not.be.ok;
-  })
+    
+    if (body && typeof body === 'object') {
+      expect(Object.keys(body).length, `Response body should be empty but contains keys: ${Object.keys(body)}`).to.equal(0);
+    } else {
+      expect(body, `Response body should be empty but contains data`).to.not.be.ok;
+    }
+  });
   
   bru.setNextRequest(null);
 }

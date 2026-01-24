@@ -1,0 +1,86 @@
+meta {
+  name: 06_[HP] GET /favorites/:id - Get favorite airport by id after delete
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/favorites/{{fid}}
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer token={{airportgap_token}}
+}
+
+vars:pre-request {
+  id: 25
+}
+
+tests {
+  // Global configuration
+  const scenario = 'Get favorite airports by id after delete';
+  const endpoint = '/airports/favorites/:id';
+  
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 1000;
+  const STATUS_NOT_FOUND = 404;
+  const EXPECTED_ERROR_MSG = "not be found";
+  const requiredErrorKeys = ["status", "title", "detail"];
+  
+  const body = res.getBody();
+  const errors = body ? body.errors : null;
+  const firstError = errors ? errors[0] : null;
+  const contentType = res.getHeader("content-type");
+  
+  // --- TESTS ---
+  
+  // Test 1: HTTP status code
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_NOT_FOUND} - ${endpoint}`, () => {
+    expect(res.getStatus(), `Expected status code ${STATUS_NOT_FOUND} but got ${res.getStatus()}`).to.equal(STATUS_NOT_FOUND);
+  });
+  
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - should respond within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
+  });
+  
+  // Test 3: Content-Type
+  test(`[HP] - ${scenario} - Headers - should return JSON`, () => {
+    expect(contentType).to.include("application/json");
+  });
+  
+  // Test 4, 5 & 6: Response structure (Errors array)
+  test(`[HP] - ${scenario} - Response Structure - errors array validation`, () => {
+    expect(body, "Response body missing").to.be.ok;
+    expect(body).to.have.property('errors');
+    expect(errors, "Errors should be an array").to.be.an('array');
+    expect(errors.length, "Errors array is empty").to.be.greaterThan(0);
+  });
+  
+  // Test 7, 8 & 9: Error object schema and types
+  test(`[HP] - ${scenario} - Schema Validation - error object details`, () => {
+    requiredErrorKeys.forEach(key => {
+      expect(firstError, `Error object is missing key: ${key}`).to.have.property(key);
+      expect(firstError[key], `Field ${key} should be a non-empty string`).to.be.a('string').and.length.of.at.least(1);
+    });
+  });
+  
+  // Test 10 & 11: Error content validation
+  test(`[HP] - ${scenario} - Error Validation - content check`, () => {
+    // Overenie statusu vnútri JSON (často sa vracia ako string "404")
+    expect(firstError.status).to.equal(String(STATUS_NOT_FOUND));
+    
+    // Overenie detailnej správy
+    expect(firstError.detail.toLowerCase()).to.include(EXPECTED_ERROR_MSG.toLowerCase());
+  });
+  
+  // Nastavenie ďalšej požiadavky (napr. návrat na zoznam alebo ukončenie)
+  bru.setNextRequest(null);
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

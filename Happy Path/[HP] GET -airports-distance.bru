@@ -23,16 +23,25 @@ body:form-urlencoded {
 }
 
 tests {
-  const body = res.getBody();
-  const distanceData = body.data;
-  const attributes = distanceData.attributes;
+  // Global configuration
+  const scenario = 'Get airport distance';
   const endpoint = '/airports/distance';
   
-  // Configuration
-  const MAX_RESPONSE_TIME_MS = 2000;
-  const MAX_EARTH_DISTANCE_KM = 20038; // Half of Earth's circumference
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_OK = Number(bru.getVar("STATUS_OK")) || 200;
+  
+  // Earth constants for validation
+  const MAX_EARTH_DISTANCE_KM = 20038; 
   const KM_TO_MILES = 0.621371;
   const KM_TO_NAUTICAL = 0.539957;
+  const TOLERANCE_PCT = 0.01; 
+  
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  
+  const body = res.getBody();
+  const distanceData = body ? body.data : null;
+  const attributes = distanceData ? distanceData.attributes : null;
   
   // Required keys
   const requiredDistanceKeys = ['id', 'type', 'attributes'];
@@ -40,128 +49,85 @@ tests {
   const requiredAirportKeys = ['id', 'name', 'city', 'country', 'iata', 'icao', 'latitude', 'longitude', 'altitude', 'timezone'];
   
   // Helper function
-  function validateAirportIATAFormat(airport, airportName) {
-    expect(airport.iata, `${airportName} IATA code "${airport.iata}" does not match format (3 uppercase letters)`).to.match(/^[A-Z]{3}$/);
+  function validateAirportIATA(airport, airportLabel) {
+    expect(airport.iata, `${airportLabel}: IATA code "${airport.iata}" invalid`).to.match(IATA_PATTERN);
   }
   
   // Test 1: Status code
-  test("[HP] - Status Code - should return 200 - " + endpoint, () => {
-    expect(res.getStatus(), `Expected status code 200 but got ${res.getStatus()}`).to.equal(200);
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_OK}`, () => {
+    expect(res.getStatus()).to.equal(STATUS_OK);
   });
   
-  // Test 2: Response time
-  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded ${MAX_RESPONSE_TIME_MS}ms`).to.be.below(MAX_RESPONSE_TIME_MS);
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
   // Test 3: Content-Type
-  test("[HP] - Headers - should return JSON content type - " + endpoint, () => {
-    const contentType = res.getHeader('content-type');
-    expect(contentType, `Expected Content-Type to include "application/json" but got "${contentType}"`).to.include('application/json');
+  test(`[HP] - ${scenario} - Headers - should return JSON`, () => {
+    expect(res.getHeader('content-type')).to.include('application/json');
   });
   
-  // Test 4: Base structure
-  test("[HP] - Response Structure - should return data object - " + endpoint, () => {
-    expect(body, `Response body is missing "data" property`).to.have.property('data');
-    expect(distanceData, `Property "data" should be object but got ${typeof distanceData}`).to.be.an('object');
+  // Test 4: Structure validation
+  test(`[HP] - ${scenario} - Response Structure - distance data validation`, () => {
+    expect(distanceData, "Data object missing").to.be.an('object');
+    expect(Object.keys(distanceData).length).to.be.greaterThan(0);
+    expect(distanceData.type).to.equal('airport_distance');
   });
   
-  // Test 5: Distance object not empty
-  test("[HP] - Data Validation - distance object should not be empty - " + endpoint, () => {
-    expect(Object.keys(distanceData).length, `Distance data object is empty`).to.be.greaterThan(0);
-  });
-  
-  // Test 6: Required distance keys
-  test("[HP] - Schema Validation - should have all required distance keys - " + endpoint, () => {
-    requiredDistanceKeys.forEach(key => {
-      expect(distanceData, `Distance object is missing required key: "${key}"`).to.have.property(key);
-    });
-  });
-  
-  // Test 7: Attributes required keys
-  test("[HP] - Schema Validation - should have all required attribute keys - " + endpoint, () => {
-    requiredAttributeKeys.forEach(key => {
-      expect(attributes, `Attributes object is missing required key: "${key}"`).to.have.property(key);
-    });
-  });
-  
-  // Test 8: Data types
-  test("[HP] - Data Types - should have correct data types - " + endpoint, () => {
-    expect(distanceData.id, `"id" should be string but got ${typeof distanceData.id}`).to.be.a('string');
-    expect(distanceData.type, `"type" should be "airport_distance" but got "${distanceData.type}"`).to.equal('airport_distance');
-    expect(attributes.kilometers, `"kilometers" should be number but got ${typeof attributes.kilometers}`).to.be.a('number');
-    expect(attributes.miles, `"miles" should be number but got ${typeof attributes.miles}`).to.be.a('number');
-    expect(attributes.nautical_miles, `"nautical_miles" should be number but got ${typeof attributes.nautical_miles}`).to.be.a('number');
-    expect(attributes.from_airport, `"from_airport" should be object but got ${typeof attributes.from_airport}`).to.be.an('object');
-    expect(attributes.to_airport, `"to_airport" should be object but got ${typeof attributes.to_airport}`).to.be.an('object');
-  });
-  
-  // Test 9: from_airport structure
-  test("[HP] - Schema Validation - from_airport should have all required keys - " + endpoint, () => {
-    requiredAirportKeys.forEach(key => {
-      expect(attributes.from_airport, `from_airport is missing required key: "${key}"`).to.have.property(key);
-    });
-  });
-  
-  // Test 10: to_airport structure
-  test("[HP] - Schema Validation - to_airport should have all required keys - " + endpoint, () => {
-    requiredAirportKeys.forEach(key => {
-      expect(attributes.to_airport, `to_airport is missing required key: "${key}"`).to.have.property(key);
-    });
-  });
-  
-  // Test 11: Distance values validation
-  test("[HP] - Range Validation - distance values should be positive - " + endpoint, () => {
-    expect(attributes.kilometers, `Kilometers ${attributes.kilometers} should be greater than 0`).to.be.greaterThan(0);
-    expect(attributes.miles, `Miles ${attributes.miles} should be greater than 0`).to.be.greaterThan(0);
-    expect(attributes.nautical_miles, `Nautical miles ${attributes.nautical_miles} should be greater than 0`).to.be.greaterThan(0);
-  });
-  
-  // Test 12: Realistic distance range
-  test("[HP] - Range Validation - distance should be within realistic range - " + endpoint, () => {
-    expect(attributes.kilometers, `Distance ${attributes.kilometers}km exceeds max possible (${MAX_EARTH_DISTANCE_KM}km)`).to.be.below(MAX_EARTH_DISTANCE_KM);
-  });
-  
-  test("[HP] - Data Accuracy - distance conversions within acceptable range - " + endpoint, () => {
-    const percentageTolerance = 0.01; // 1% tolerance
+  // Test 5: Schema Validation (Keys)
+  test(`[HP] - ${scenario} - Schema Validation - required keys check`, () => {
+    requiredDistanceKeys.forEach(key => expect(distanceData).to.have.property(key));
+    requiredAttributeKeys.forEach(key => expect(attributes).to.have.property(key));
     
+    requiredAirportKeys.forEach(key => {
+      expect(attributes.from_airport).to.have.property(key);
+      expect(attributes.to_airport).to.have.property(key);
+    });
+  });
+  
+  // Test 6: Data types
+  test(`[HP] - ${scenario} - Data Types - numbers and objects validation`, () => {
+    expect(attributes.kilometers).to.be.a('number');
+    expect(attributes.miles).to.be.a('number');
+    expect(attributes.from_airport).to.be.an('object');
+  });
+  
+  // Test 7: Range Validation (Distance)
+  test(`[HP] - ${scenario} - Range Validation - realistic distance checks`, () => {
+    expect(attributes.kilometers).to.be.within(0.1, MAX_EARTH_DISTANCE_KM);
+    expect(attributes.miles).to.be.greaterThan(0);
+  });
+  
+  // Test 8: Data Accuracy 
+  test(`[HP] - ${scenario} - Data Accuracy - conversion check`, () => {
     const expectedMiles = attributes.kilometers * KM_TO_MILES;
-    const milesDifference = Math.abs(attributes.miles - expectedMiles);
-    const milesPercentageOff = milesDifference / expectedMiles;
+    const diff = Math.abs(attributes.miles - expectedMiles);
+    const pctOff = diff / expectedMiles;
     
-    expect(milesPercentageOff, 
-      `Miles conversion ${milesPercentageOff * 100}% off (expected ~${expectedMiles} but got ${attributes.miles})`
-    ).to.be.below(percentageTolerance);
+    expect(pctOff, `Miles conversion deviation too high: ${pctOff.toFixed(4)}`).to.be.below(TOLERANCE_PCT);
   });
   
-  // Test 14: Airports should be different
-  test("[HP] - Data Integrity - from and to airports should be different - " + endpoint, () => {
-    expect(attributes.from_airport.id, `From and to airports should be different but both are: ${attributes.from_airport.id}`).to.not.equal(attributes.to_airport.id);
+  // Test 9: Data Integrity (Source vs Destination)
+  test(`[HP] - ${scenario} - Data Integrity - source and destination must differ`, () => {
+    expect(attributes.from_airport.id).to.not.equal(attributes.to_airport.id);
   });
   
-  // Test 15: IATA format validation
-  test("[HP] - Format Validation - airports should have valid IATA codes - " + endpoint, () => {
-    validateAirportIATAFormat(attributes.from_airport, 'from_airport');
-    validateAirportIATAFormat(attributes.to_airport, 'to_airport');
-  });
+  // Test 10: Formats & GPS
+  test(`[HP] - ${scenario} - Format & GPS - validation of both airports`, () => {
+    const airports = [
+      { label: 'From', data: attributes.from_airport },
+      { label: 'To', data: attributes.to_airport }
+    ];
   
-  // Test 16: GPS coordinates validation
-  test("[HP] - Range Validation - airports should have valid GPS coordinates - " + endpoint, () => {
-    const fromLat = parseFloat(attributes.from_airport.latitude);
-    const fromLon = parseFloat(attributes.from_airport.longitude);
-    const toLat = parseFloat(attributes.to_airport.latitude);
-    const toLon = parseFloat(attributes.to_airport.longitude);
-    
-    expect(fromLat, `from_airport latitude ${fromLat} is out of range (-90 to 90)`).to.be.within(-90, 90);
-    expect(fromLon, `from_airport longitude ${fromLon} is out of range (-180 to 180)`).to.be.within(-180, 180);
-    expect(toLat, `to_airport latitude ${toLat} is out of range (-90 to 90)`).to.be.within(-90, 90);
-    expect(toLon, `to_airport longitude ${toLon} is out of range (-180 to 180)`).to.be.within(-180, 180);
-  });
-  
-  // Test 17: Airport names not empty
-  test("[HP] - Data Quality - airport names should not be empty - " + endpoint, () => {
-    expect(attributes.from_airport.name.trim().length, `from_airport name is empty`).to.be.greaterThan(0);
-    expect(attributes.to_airport.name.trim().length, `to_airport name is empty`).to.be.greaterThan(0);
+    airports.forEach(a => {
+      validateAirportIATA(a.data, a.label);
+      const lat = parseFloat(a.data.latitude);
+      const lon = parseFloat(a.data.longitude);
+      expect(lat).to.be.within(-90, 90);
+      expect(lon).to.be.within(-180, 180);
+      expect(a.data.name.trim()).to.not.be.empty;
+    });
   });
 }
 

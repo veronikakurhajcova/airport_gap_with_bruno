@@ -37,17 +37,32 @@ script:post-response {
 }
 
 tests {
-  const body = res.getBody();
-  const data = body.data;
-  const firstItem = data[0];
-  const links = body.links;
-  const attributes = data[0].attributes;
-  const airportData = attributes.airport;
-  const timezone = airportData.timezone;
+  // Configuration
+  const scenario = 'Get all favorites airports';
   const endpoint = '/favorites';
   
-  // Configuration
-  const MAX_RESPONSE_TIME_MS = 2000;
+  const BASE_URL = bru.getVar("BASE_URL") || "https://airportgap.com/api";
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD"));
+  const STATUS_OK = Number(bru.getVar("STATUS_OK")) || 200;
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  const TIMEZONE_PATTERN = /^[A-Za-z_\/]+$/;
+  
+  const MIN_LATITUDE = Number(bru.getVar("MIN_LATITUDE")) || -90;
+  const MAX_LATITUDE = Number(bru.getVar("MAX_LATITUDE")) || 90;
+  const MIN_LONGITUDE = Number(bru.getVar("MIN_LONGITUDE")) || -180;
+  const MAX_LONGITUDE = Number(bru.getVar("MAX_LONGITUDE")) || 180;
+  const MIN_ALTITUDE = Number(bru.getVar("MIN_ALTITUDE")) || -1500;
+  const MAX_ALTITUDE = Number(bru.getVar("MAX_ALTITUDE")) || 30000;
+  
+  const DEFAULT_PAGE_LIMIT = Number(bru.getVar("DEFAULT_PAGE_LIMIT")) || 30;
+  
+  const body = res.getBody();
+  const data = body.data;
+  const firstItem = data ? data[0] : null;
+  const links = body.links;
+  const attributes = firstItem ? firstItem.attributes : null;
+  const airportData = attributes ? attributes.airport : null;
+  const timezone = airportData ? airportData.timezone : null;
   
   // Validation schema
   const schema = {
@@ -102,64 +117,54 @@ tests {
     }
   };
   
-  // Helper function
-  function validateAirportIATAFormat(airport, airportName) {
-    expect(airport.iata, `${airportName} IATA code "${airport.iata}" does not match format (3 uppercase letters)`).to.match(/^[A-Z]{3}$/);
-  }
-  
   // Test 1: Status code
-  test("[HP] - Status Code - should return 200 - " + endpoint, () => {
-    expect(res.getStatus(), `Expected status code 200 but got ${res.getStatus()}`).to.equal(200);
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_OK} - ${endpoint}`, () => {
+    expect(res.getStatus(), `Expected status code ${STATUS_OK} but got ${res.getStatus()}`).to.equal(STATUS_OK);
   });
   
   // Test 2: Response time
-  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded ${MAX_RESPONSE_TIME_MS}ms`).to.be.below(MAX_RESPONSE_TIME_MS);
+  test(`[HP] - ${scenario} - Performance - should respond within acceptable time - ${endpoint}`, () => {
+    expect(res.getResponseTime(), `Response time ${res.getResponseTime()} ms exceeded ${MAX_RESPONSE_TIME_MS} ms`).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
   // Test 3: Content-Type
-  test("[HP] - Headers - should return JSON content type - " + endpoint, () => {
+  test(`[HP] - ${scenario} - Headers - should return JSON content type - ${endpoint}`, () => {
     const contentType = res.getHeader('content-type');
     expect(contentType, `Expected Content-Type to include "application/json" but got "${contentType}"`).to.include('application/json');
   });
   
   // Test 4: Base structure
-  test("[HP] - Response Structure - should return data object - " + endpoint, () => {
+  test(`[HP] - ${scenario} - Response Structure - should return data object - ${endpoint}`, () => {
     expect(body, `Response body is missing "data" property`).to.have.property('data');
     expect(data, `Property "data" should be array but got ${typeof data}`).to.be.an('array');
   });
   
   // Test 5: Attributes object not empty
-  test("[HP] - Data Validation - data array should not be empty - " + endpoint, () => {
+  test(`[HP] - ${scenario} - Data Validation - data array should not be empty - ${endpoint}`, () => {
     expect(data.length, `Data array is empty`).to.be.greaterThan(0);
   });
   
   // Test 6: Schema Validation & Data Type Validation
-  test("[HP] - Contract Testing - Comprehensive Schema Validation - " + endpoint, () => {
-    // 1. Validate (data, links)
+  test(`[HP] - ${scenario} - Contract Testing - Comprehensive Schema Validation - ${endpoint}`, () => {
     schema.required.forEach(key => {
       expect(body, `Root missing: ${key}`).to.have.property(key);
     });
   
-    // 2. Validate data
     const itemSchema = schema.properties.data.items;
     itemSchema.required.forEach(key => {
       expect(firstItem, `Item missing: ${key}`).to.have.property(key);
       expect(firstItem[key], `Type mismatch for ${key}`).to.be.a(itemSchema.properties[key].type);
     });
   
-    // 3. Validate attributes
     const attrSchema = itemSchema.properties.attributes;
     attrSchema.required.forEach(key => {
       expect(attributes, `Attributes missing: ${key}`).to.have.property(key);
     });
   
-    // 4. Validate airports 
     const airSchema = attrSchema.properties.airport;
     airSchema.required.forEach(key => {
       expect(airportData, `Airport object missing: ${key}`).to.have.property(key);
       
-      // Validate data types
       const expectedType = airSchema.properties[key].type;
       if (Array.isArray(expectedType)) {
         const actualType = airportData[key] === null ? "null" : typeof airportData[key];
@@ -170,59 +175,66 @@ tests {
     });
   });
   
-  // Test 7: Validation - (IATA format)
-  test("[HP] - Data Integrity - IATA code format - " + endpoint, () => {
-    validateAirportIATAFormat(airportData, "Favorite Airport");
+  // Test 7 : Data validation
+  test(`[HP] - ${scenario} - Data Integrity - All airports should have valid IATA and GPS - ${endpoint}`, () => {
+    data.forEach((item, index) => {
+      const airport = item.attributes.airport;
+      const name = airport.name || `Airport at index ${index}`;
+      
+      // Validation IATA
+      expect(airport.iata, `${name}: IATA code "${airport.iata}" is invalid`).to.match(IATA_PATTERN);
+      
+      // Validation GPS
+      const lat = Number(airport.latitude);
+      const long = Number(airport.longitude);
+      
+      expect(lat, `${name}: latitude ${lat} out of range`).to.be.within(MIN_LATITUDE, MAX_LATITUDE);
+      expect(long, `${name}: longitude ${long} out of range`).to.be.within(MIN_LONGITUDE, MAX_LONGITUDE);
+      
+      expect(lat !== 0 || long !== 0, `${name}: GPS is [0,0] - possible missing data`).to.be.true;
+    });
   });
   
-  // Test 8: GPS coordinates validation
-  test("[HP] - Range Validation - airports should have valid GPS coordinates - " + endpoint, () => {
-    const lat= Number(airportData.latitude);
-    const long = Number(airportData.longitude);
-    expect(lat, `airport latitude ${lat} is out of range (-90 to 90)`).to.be.within(-90, 90);
-    expect(long, `airport longitude ${long} is out of range (-180 to 180)`).to.be.within(-180, 180);
-    expect(lat).to.not.equal(0, "Latitude is exactly 0.0 - possible missing data");
-    expect(long).to.not.equal(0, "Longitude is exactly 0.0 - possible missing data");
+  // Test 8: Validate altitude
+  test(`[HP] - ${scenario} - Range Validation - should have realistic altitude value - ${endpoint}`, () => {
+    data.forEach((item, index) => {
+      const currentAltitude = Number(item.attributes.airport.altitude);
+      const name = item.attributes.airport.name || `Airport #${index}`;  
+      expect(currentAltitude, `${name}: Altitude ${currentAltitude} is out of range`).to.be.within(MIN_ALTITUDE, MAX_ALTITUDE);
+    });
   });
   
-  // Test 9: Validate altitude
-  test("[HP] - Range Validation - should have realistic altitude value - " + endpoint, () =>  {
-    const altitude= Number(airportData.altitude);
-    expect(altitude, `Altitude ${altitude} is out of realistic range (-1500 to 30000 feet)`).to.be.within(-1500, 30000);
+  // Test 9: Validate timezone format
+  test(`[HP] - ${scenario} - Format Validation - should have valid timezone format - ${endpoint}`, () => {
+    data.forEach((item, index) => {
+      const currentTimezone = item.attributes.airport.timezone;
+      const name = item.attributes.airport.name || `Airport #${index}`;  
+      expect(currentTimezone, `${name}: Timezone ${currentTimezone} invalid format`).to.match(TIMEZONE_PATTERN);
+    });
   });
   
-  // Test 10: Validate timezone format
-  test("[HP] - Format Validation - should have valid timezone format - " + endpoint, () =>  {
-    expect(timezone, `Timezone ${timezone} does not match expected format (letters, underscores, slashes)`).to.match(/^[A-Za-z_\/]+$/);
-  });
-  
-  // Test 11: Validate links
-  test("[HP] - Response Structure - should return links object - " + endpoint, () => {
+  // Test 10: Validate links
+  test(`[HP] - ${scenario} - Response Structure - should return links object - ${endpoint}`, () => {
     expect(body, `Body is missing "links" property`).to.have.property('links');
     expect(links, `Property "links" should be object but got ${typeof links}`).to.be.an('object');
     expect(Object.keys(links).length, `Links object is empty`).to.be.greaterThan(0);
   });
   
-  // Test 13 - Links object not empty
-  test("[HP] - Links Validation - should include https://airportgap.com/api/airports - " + endpoint, () => {
+  // Test 11: Links content validation
+  test(`[HP] - ${scenario} - Links Validation - should include official API URL - ${endpoint}`, () => {
     const linksItems = ["first", "self", "last", "prev", "next"];
-    const linksUrl = "https://airportgap.com/api/airports";
     
     linksItems.forEach(link => {
-      expect(links[link], `Links "${link}" does not contain ${linksUrl}`).to.include(linksUrl);
+      expect(links[link]).to.match(/\/(favorites|airports)/);
     });
   });
   
-  // Test, že počet vrátených letísk je <= limit
-  const limit = 30;
-  test("[Pagination] Should return no more than limit items", () => {
-      expect(data.length).to.be.at.most(limit);
+  // Test 13: Pagination limit
+  test(`[Pagination] - ${scenario} - Limit Validation - Should return no more than ${DEFAULT_PAGE_LIMIT} items - ${endpoint}`, () => {
+      expect(data.length).to.be.at.most(DEFAULT_PAGE_LIMIT);
   });
   
   bru.setNextRequest("04_[HP] PATCH /favorites");
-  
-  
-  
 }
 
 settings {

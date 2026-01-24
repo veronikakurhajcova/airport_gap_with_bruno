@@ -1,0 +1,157 @@
+meta {
+  name: [HP] GET /favorites/:id - Get favorite airport by id
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/favorites/{{fid}}
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer token={{airportgap_token}}
+}
+
+vars:pre-request {
+  id: 25
+}
+
+tests {
+  // Global configuration
+  const scenario = 'Get favorites airport by id';
+  const endpoint = '/favorites/:id';
+  
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_OK = Number(bru.getVar("STATUS_OK")) || 200;
+  
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  const TIMEZONE_PATTERN = /^[A-Za-z_\/]+$/;
+  
+  const ALTITUDE_MIN = Number(bru.getVar("MIN_ALTITUDE")) || -1500;
+  const ALTITUDE_MAX = Number(bru.getVar("MAX_ALTITUDE")) || 30000;
+  
+  const body = res.getBody();
+  const data = body ? body.data : null;
+  const attributes = data ? data.attributes : null;
+  const airportData = attributes ? attributes.airport : null;
+  const note = attributes ? attributes.note : null;
+  const timezone = airportData ? airportData.timezone : null;
+  
+  // Validation schema 
+  const schema = {
+    type: "object",
+    required: ["id", "type", "attributes"],
+    properties: {
+      id: { type: "string" },
+      type: { type: "string" }, 
+      attributes: {
+        type: "object",
+        required: ["airport", "note"],
+        properties: {
+          airport: {
+            type: "object",
+            required: ["id", "name", "city", "country", "iata", "icao", "latitude", "longitude", "altitude", "timezone"],
+            properties: {
+              id: { type: "number" },
+              name: { type: "string" },
+              city: { type: "string" },
+              country: { type: "string" },
+              iata: { type: "string" },
+              icao: { type: "string" },
+              latitude: { type: "string" },
+              longitude: { type: "string" },
+              altitude: { type: "number" },
+              timezone: { type: "string" }
+            }
+          },
+          note: { type: "string" }
+        }
+      }
+    }
+  };
+  
+  // Helper function
+  function validateAirportIATA(iata, label) {
+    expect(iata, `${label}: IATA code "${iata}" invalid`).to.match(IATA_PATTERN);
+  }
+  
+  
+  // Test 1: Status code
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_OK}`, () => {
+    expect(res.getStatus()).to.equal(STATUS_OK);
+  });
+  
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
+  });
+  
+  // Test 3: Content-Type
+  test(`[HP] - ${scenario} - Headers - should return JSON`, () => {
+    expect(res.getHeader('content-type')).to.include('application/json');
+  });
+  
+  // Test 4: Structure & Non-empty check
+  test(`[HP] - ${scenario} - Response Structure - single favorite validation`, () => {
+    expect(data, "Data should be an object").to.be.an('object').and.not.be.an('array');
+    expect(Object.keys(data).length).to.be.greaterThan(0);
+  });
+  
+  // Test 5: ID validation (Match with Environment)
+  test(`[HP] - ${scenario} - ID Validation - match requested ID`, () => {
+    const requestedId = bru.getEnvVar("fid");
+    expect(data.id).to.equal(String(requestedId));
+  });
+  
+  // Test 6: Schema Validation (Contract Testing)
+  test(`[HP] - ${scenario} - Contract Testing - schema properties and types`, () => {
+    // 1. Root
+    schema.required.forEach(key => {
+      expect(data).to.have.property(key);
+      expect(data[key]).to.be.a(schema.properties[key].type);
+    });
+  
+    // 2. Attributes & Airport
+    const airSchema = schema.properties.attributes.properties.airport;
+    airSchema.required.forEach(key => {
+      expect(airportData).to.have.property(key);
+      expect(airportData[key]).to.be.a(airSchema.properties[key].type);
+    });
+  });
+  
+  // Test 7: IATA format
+  test(`[HP] - ${scenario} - Format Validation - IATA code`, () => {
+    validateAirportIATA(airportData.iata, "Favorite Airport");
+  });
+  
+  // Test 8: Range Validation (GPS & Altitude)
+  test(`[HP] - ${scenario} - Range Validation - GPS and Altitude`, () => {
+    const lat = Number(airportData.latitude);
+    const lon = Number(airportData.longitude);
+    
+    expect(lat).to.be.within(-90, 90);
+    expect(lon).to.be.within(-180, 180);
+    expect(Number(airportData.altitude)).to.be.within(ALTITUDE_MIN, ALTITUDE_MAX);
+  });
+  
+  // Test 9: Timezone format
+  test(`[HP] - ${scenario} - Format Validation - Timezone`, () => {
+    expect(timezone).to.match(TIMEZONE_PATTERN);
+  });
+  
+  // Test 10: Note validation
+  test(`[HP] - ${scenario} - Message Validation - check saved note`, () => {
+    const expectedNote = bru.getEnvVar("expectedNote");
+    if (note !== null) {
+      expect(note).to.equal(expectedNote);
+    }
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

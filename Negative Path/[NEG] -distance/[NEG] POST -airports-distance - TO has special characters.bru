@@ -18,77 +18,57 @@ body:json {
 }
 
 tests {
-  // Test configuration
+  // Global configuration
   const scenario = 'TO has special characters';
   const endpoint = '/airports/distance';
-  const MAX_RESPONSE_TIME = 2000;
+  
+  // Constant variables
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_UNPROCESSABLE_ENTITY = 422;
+  const EXPECTED_ERROR_MSG = "Please enter valid 'from' and 'to' airports.";
   const requiredErrorKeys = ["status", "title", "detail"];
-  const EXPECTED_ERROR_MSG = "Please enter valid 'from' and 'to' airports."; 
+  
   const body = res.getBody();
-  const errors = body.errors;
+  const errors = body ? body.errors : null;
+  const firstError = errors ? errors[0] : null;
   const contentType = res.getHeader("content-type");
   
-  // Test 1: Verify HTTP status code when 'to' is missing
-  test(`[NEG] - ${scenario} - Status Code - should return 422 - ${endpoint}`, () => {
-    expect(res.getStatus(), `Expected status code 422 but got ${res.getStatus()}`).to.equal(422);
+  // Test 1: Status code
+  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_UNPROCESSABLE_ENTITY}`, () => {
+    expect(res.getStatus(), `API should reject special characters in 'to' parameter`).to.equal(STATUS_UNPROCESSABLE_ENTITY);
   });
   
-  // Test 2: Verify response time
-  test(`[NEG] - ${scenario} - Performance - should respond within acceptable time - ${endpoint}`, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded limit of ${MAX_RESPONSE_TIME}ms`).to.be.below(MAX_RESPONSE_TIME);
+  // Test 2: Performance
+  test(`[NEG] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
-  // Test 3: Verify Content-Type header
-  test(`[NEG] - ${scenario} - Headers - should return JSON content type - ${endpoint}`, () => {
-    expect(contentType, `Expected Content-Type to include "application/json" but got "${contentType}"`).to.include("application/json");
+  // Test 3: Content-Type
+  test(`[NEG] - ${scenario} - Headers - should return JSON`, () => {
+    expect(contentType).to.include("application/json");
   });
   
-  // Test 4: Verify response body contains errors property
-  test(`[NEG] - ${scenario} - Response Structure - should have errors property - ${endpoint}`, () => {
-    expect(body, "Response body should have 'errors' property").to.have.property('errors');
+  // Test 4: Response structure
+  test(`[NEG] - ${scenario} - Response Structure - errors validation`, () => {
+    expect(body).to.have.property('errors');
+    expect(errors, "Errors must be an array").to.be.an('array').and.not.empty;
   });
   
-  // Test 5: Verify errors is an array
-  test(`[NEG] - ${scenario} - Response Structure - should return errors array - ${endpoint}`, () => {
-    expect(errors, `Expected errors to be an array but got ${typeof errors}`).to.be.an('array');
-  });
-  
-  // Test 6: Verify errors array is not empty
-  test(`[NEG] - ${scenario} - Response Structure - errors array should not be empty - ${endpoint}`, () => {
-    expect(errors.length, "Errors array should contain at least one error").to.be.greaterThan(0);
-  });
-  
-  // Test 7: Verify error object contains all required keys
-  test(`[NEG] - ${scenario} - Error Structure - should have all required keys - ${endpoint}`, () => {
-    const error = errors[0];
+  // Test 5: Schema Validation
+  test(`[NEG] - ${scenario} - Schema Validation - error object details`, () => {
     requiredErrorKeys.forEach(key => {
-      expect(error, `Error object is missing required key: "${key}"`).to.have.property(key);
+      expect(firstError, `Error object missing key: ${key}`).to.have.property(key);
+      expect(firstError[key], `Field ${key} should be a non-empty string`).to.be.a('string').and.length.of.at.least(1);
     });
   });
   
-  // Test 8: Verify all error fields are strings
-  test(`[NEG] - ${scenario} - Schema Validation - all error fields should be strings - ${endpoint}`, () => {
-    expect(errors[0].status, `Field "status" should be a string`).to.be.a('string');
-    expect(errors[0].title, `Field "title" should be a string`).to.be.a('string');
-    expect(errors[0].detail, `Field "detail" should be a string`).to.be.a('string');
+  // Test 6: Error Validation
+  test(`[NEG] - ${scenario} - Error Validation - content check`, () => {
+    expect(String(firstError.status)).to.equal(String(STATUS_UNPROCESSABLE_ENTITY));
+    expect(firstError.detail).to.include(EXPECTED_ERROR_MSG);
   });
   
-  // Test 9: Verify error fields are not empty
-  test(`[NEG] - ${scenario} - Schema Validation - error fields should not be empty - ${endpoint}`, () => {
-    expect(errors[0].status.length, `Field "status" should not be empty`).to.be.greaterThan(0);
-    expect(errors[0].title.length, `Field "title" should not be empty`).to.be.greaterThan(0);
-    expect(errors[0].detail.length, `Field "detail" should not be empty`).to.be.greaterThan(0);
-  });
-  
-  // Test 10: Verify error status code matches expected value
-  test(`[NEG] - ${scenario} - Error Validation - should return correct error status - ${endpoint}`, () => {
-    expect(errors[0].status, `Expected error status to be "422" but got "${errors[0].status}"`).to.eql("422");
-  });
-  
-  // Test 11: Verify error detail message contains expected text
-  test(`[NEG] - ${scenario} - Error Validation - should include invalid message - ${endpoint}`, () => {
-    expect(errors[0].detail, `Expected error detail to include "${EXPECTED_ERROR_MSG}" but got "${errors[0].detail}"`).to.include(EXPECTED_ERROR_MSG);
-  });
+  bru.setNextRequest(null);
 }
 
 settings {

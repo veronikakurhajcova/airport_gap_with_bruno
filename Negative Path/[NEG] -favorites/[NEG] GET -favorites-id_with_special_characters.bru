@@ -1,31 +1,24 @@
 meta {
-  name: [NEG] POST /airports/distance - FROM has special characters
+  name: [NEG] GET /favorites/id_with_special_characters
   type: http
-  seq: 12
+  seq: 1
 }
 
-post {
-  url: {{baseUrl}}/airports/distance
-  body: json
+get {
+  url: {{baseUrl}}/airports/{{idWithSpecialCharacters}}
+  body: none
   auth: inherit
-}
-
-body:json {
-  {
-    "from":"!@#",
-    "to":"LHR"
-  }
 }
 
 tests {
   // Global configuration
-  const scenario = 'FROM has special characters';
-  const endpoint = '/airports/distance';
+  const scenario = 'Get /favorites id with special characters';
+  const endpoint = '/airports/{id_with_special_characters}';
   
   // Constant variables
-  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
-  const STATUS_UNPROCESSABLE_ENTITY = 422;
-  const EXPECTED_ERROR_MSG = "Please enter valid 'from' and 'to' airports.";
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 1000;
+  const STATUS_NOT_FOUND = 404;
+  const EXPECTED_ERROR_MSG = "not be found";
   const requiredErrorKeys = ["status", "title", "detail"];
   
   const body = res.getBody();
@@ -34,8 +27,8 @@ tests {
   const contentType = res.getHeader("content-type");
   
   // Test 1: Status code
-  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_UNPROCESSABLE_ENTITY}`, () => {
-    expect(res.getStatus(), `API should reject special characters in IATA codes`).to.equal(STATUS_UNPROCESSABLE_ENTITY);
+  test(`[NEG] - ${scenario} - Status Code - should return ${STATUS_NOT_FOUND}`, () => {
+    expect(res.getStatus(), `Expected status 404 for invalid resource ID format`).to.equal(STATUS_NOT_FOUND);
   });
   
   // Test 2: Performance
@@ -55,17 +48,17 @@ tests {
   });
   
   // Test 5: Schema Validation
-  test(`[NEG] - ${scenario} - Schema Validation - error object consistency`, () => {
+  test(`[NEG] - ${scenario} - Schema Validation - error object details`, () => {
     requiredErrorKeys.forEach(key => {
       expect(firstError, `Missing key in error object: ${key}`).to.have.property(key);
       expect(firstError[key], `Field ${key} should be a non-empty string`).to.be.a('string').and.length.of.at.least(1);
     });
   });
   
-  // Test 6: Error Validation
+  // Test 6: Error Content Validation
   test(`[NEG] - ${scenario} - Error Validation - content check`, () => {
-    expect(String(firstError.status)).to.equal(String(STATUS_UNPROCESSABLE_ENTITY));
-    expect(firstError.detail).to.include(EXPECTED_ERROR_MSG);
+    expect(String(firstError.status)).to.equal(String(STATUS_NOT_FOUND));
+    expect(firstError.detail.toLowerCase()).to.include(EXPECTED_ERROR_MSG);
   });
   
   bru.setNextRequest(null);

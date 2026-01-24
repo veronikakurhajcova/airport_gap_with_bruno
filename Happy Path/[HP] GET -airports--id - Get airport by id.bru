@@ -15,35 +15,26 @@ vars:pre-request {
 }
 
 tests {
-  // Global variables
-  const body = res.getBody();
-  const airport = body.data;
-  const attributes = airport.attributes;
+  // Global configuration
+  const scenario = 'Get airport by id';
   const endpoint = '/airports/:id';
   
-  // Configuration constants
-  const MAX_RESPONSE_TIME_MS = 2000;
+  // Constant variables (priority: environment > default)
+  const MAX_RESPONSE_TIME_MS = Number(bru.getVar("MAX_RESPONSE_TIME_STANDARD")) || 2000;
+  const STATUS_OK = Number(bru.getVar("STATUS_OK")) || 200;
   const MIN_NAME_LENGTH = 3;
   const EXPECTED_AIRPORT_TYPE = 'airport';
-  const ALTITUDE_MIN = -1500;
-  const ALTITUDE_MAX = 30000;
   
-  // Schema for airport object validation
-  const airportSchema = {
-    id: 'string',
-    type: 'string',
-    attributes: {
-      name: 'string',
-      city: 'string',
-      country: 'string',
-      iata: 'string',
-      icao: ['string', 'null'],
-      latitude: 'string',
-      longitude: 'string',
-      altitude: 'number',
-      timezone: 'string'
-    }
-  };
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  const ICAO_PATTERN = /^[A-Z]{4}$/;
+  const TIMEZONE_PATTERN = /^[A-Za-z0-9_\/+-:]+$/;
+  
+  const ALTITUDE_MIN = Number(bru.getVar("MIN_ALTITUDE")) || -1500;
+  const ALTITUDE_MAX = Number(bru.getVar("MAX_ALTITUDE")) || 30000;
+  
+  const body = res.getBody();
+  const airport = body ? body.data : null;
+  const attributes = airport ? airport.attributes : null;
   
   // Required keys
   const requiredAirportKeys = ['id', 'type', 'attributes'];
@@ -52,149 +43,88 @@ tests {
   // Helper functions
   function validateNonEmptyString(value, fieldName) {
     expect(value, `${fieldName} should be a string`).to.be.a('string');
-    expect(value.trim().length, `${fieldName} is empty or contains only whitespace`).to.be.greaterThan(0);
+    expect(value.trim().length, `${fieldName} is empty or only whitespace`).to.be.greaterThan(0);
   }
   
-  // Test 1: Verify successful response
-  test("[HP] - Status Code - should return 200 status code - " + endpoint, () => {
-    expect(res.getStatus(), `Expected status code 200 but got ${res.getStatus()}`).to.equal(200);
+  // Test 1: Status code
+  test(`[HP] - ${scenario} - Status Code - should return ${STATUS_OK}`, () => {
+    expect(res.getStatus()).to.equal(STATUS_OK);
   });
   
-  // Test 2: Validate response time
-  test("[HP] - Performance - should respond within acceptable time - " + endpoint, () => {
-    expect(res.getResponseTime(), `Response time ${res.getResponseTime()}ms exceeded the limit of ${MAX_RESPONSE_TIME_MS}ms`).to.be.below(MAX_RESPONSE_TIME_MS);
+  // Test 2: Performance
+  test(`[HP] - ${scenario} - Performance - response within limits`, () => {
+    expect(res.getResponseTime()).to.be.below(MAX_RESPONSE_TIME_MS);
   });
   
-  // Test 3: Verify Content-Type header
-  test("[HP] - Headers - should return JSON content type - " + endpoint, () => {
-    const contentType = res.getHeader('content-type');
-    expect(contentType, `Expected Content-Type to include "application/json" but got: ${contentType}`).to.include('application/json');
+  // Test 3: Content-Type
+  test(`[HP] - ${scenario} - Headers - should return JSON`, () => {
+    expect(res.getHeader('content-type')).to.include('application/json');
   });
   
-  // Test 4: Validate response structure
-  test("[HP] - Response Structure - should return data object - " + endpoint, () => {
-    expect(body, `Response body is missing "data" property`).to.have.property('data');
-    expect(body.data, `Property "data" is not an object but ${typeof body.data}`).to.be.an('object');
+  // Test 4: Structure & Non-empty check
+  test(`[HP] - ${scenario} - Response Structure - single object validation`, () => {
+    expect(airport, "Data should be an object").to.be.an('object').and.not.be.an('array');
+    expect(Object.keys(airport).length).to.be.greaterThan(0);
   });
   
-  // Test 5: Verify data object is not empty
-  test("[HP] - Data Validation - should return non-empty airport object - " + endpoint, () => {
-    expect(Object.keys(airport).length, `Airport object is empty`).to.be.greaterThan(0);
+  // Test 5: Schema Validation (Keys)
+  test(`[HP] - ${scenario} - Schema Validation - required keys check`, () => {
+    requiredAirportKeys.forEach(key => expect(airport).to.have.property(key));
+    requiredAttributeKeys.forEach(key => expect(attributes).to.have.property(key));
   });
   
-  // Test 6: Validate required airport object keys
-  test("[HP] - Schema Validation - should have all required airport keys - " + endpoint, () => {
-    requiredAirportKeys.forEach(key => {
-      expect(airport, `Airport object is missing required key: ${key}`).to.have.property(key);
-    });
-  });
-  
-  // Test 7: Validate required attributes keys
-  test("[HP] - Schema Validation - should have all required attribute keys - " + endpoint, () => {
-    requiredAttributeKeys.forEach(key => {
-      expect(attributes, `Airport attributes are missing required key: ${key}`).to.have.property(key);
-    });
-  });
-  
-  // Test 8: Validate top-level data types
-  test("[HP] - Data Types - should have correct top-level data types - " + endpoint, () => {
-    expect(airport.id, `Airport "id" should be string but got ${typeof airport.id}`).to.be.a('string');
-    expect(airport.type, `Airport "type" should be string but got ${typeof airport.type}`).to.be.a('string');
-    expect(airport.attributes, `Airport "attributes" should be object but got ${typeof airport.attributes}`).to.be.an('object');
-  });
-  
-  // Test 9: Validate attribute data types according to schema
-  test("[HP] - Data Types - should have correct attribute data types - " + endpoint, () => {
-    Object.keys(airportSchema.attributes).forEach(key => {
-      const expectedType = airportSchema.attributes[key];
-      const actualValue = attributes[key];
-      
-      if (Array.isArray(expectedType)) {
-        // If multiple types are allowed (e.g. string or null)
-        const isValid = expectedType.some(type => {
-          if (type === 'null') return actualValue === null;
-          return typeof actualValue === type;
-        });
-        expect(isValid, `Attribute ${key} should be one of types: ${expectedType.join(', ')} but got ${typeof actualValue} with value: ${actualValue}`).to.be.true;
-      } else {
-        expect(actualValue, `Attribute ${key} should be ${expectedType} but got ${typeof actualValue}`).to.be.a(expectedType);
-      }
-    });
-  });
-  
-  // Test 10: Validate IATA code
-  test("[HP] - Format Validation - should have valid IATA code format - " + endpoint, () => {
-    expect(attributes.iata, `IATA code ${attributes.iata} does not match expected format (3 uppercase letters)`).to.match(/^[A-Z]{3}$/);
-  });
-  
-  // Test 11: Validate ICAO code
-  test("[HP] - Format Validation - should have valid ICAO code format - " + endpoint, () => {
-    if (attributes.icao !== null && attributes.icao !== "") {
-      expect(attributes.icao, `ICAO code ${attributes.icao} does not match expected format (4 uppercase letters)`).to.match(/^[A-Z]{4}$/);
+  // Test 6: Data Types (Comprehensive check)
+  test(`[HP] - ${scenario} - Data Types - internal validation`, () => {
+    expect(airport.id).to.be.a('string');
+    expect(airport.type).to.be.a('string');
+    expect(attributes.altitude).to.be.a('number');
+    
+    if (attributes.icao !== null) {
+      expect(attributes.icao).to.be.a('string');
     }
   });
   
-  // Test 12: Validate GPS coordinates
-  test("[HP] - Range Validation - should have valid latitude and longitude values - " + endpoint, () => {
+  // Test 7: Format Validation (Regex)
+  test(`[HP] - ${scenario} - Format Validation - IATA, ICAO, Timezone`, () => {
+    expect(attributes.iata).to.match(IATA_PATTERN);
+    if (attributes.icao) {
+      expect(attributes.icao).to.match(ICAO_PATTERN);
+    }
+    expect(attributes.timezone).to.match(TIMEZONE_PATTERN);
+  });
+  
+  // Test 8: Range Validation (GPS & Altitude)
+  test(`[HP] - ${scenario} - Range Validation - GPS and Altitude`, () => {
     const lat = parseFloat(attributes.latitude);
     const lon = parseFloat(attributes.longitude);
     
-    expect(lat, `Latitude ${lat} is out of valid range (-90 to 90)`).to.be.within(-90, 90);
-    expect(lon, `Longitude ${lon} is out of valid range (-180 to 180)`).to.be.within(-180, 180);
+    expect(lat).to.be.within(-90, 90);
+    expect(lon).to.be.within(-180, 180);
+    expect(attributes.altitude).to.be.within(ALTITUDE_MIN, ALTITUDE_MAX);
   });
   
-  // Test 13: Validate altitude
-  test("[HP] - Range Validation - should have realistic altitude value - " + endpoint, () => {
-    expect(attributes.altitude, `Altitude ${attributes.altitude} is out of realistic range (${ALTITUDE_MIN} to ${ALTITUDE_MAX} feet)`).to.be.within(ALTITUDE_MIN, ALTITUDE_MAX);
-  });
-  
-  // Test 14: Validate timezone format
-  test("[HP] - Format Validation - should have valid timezone format - " + endpoint, () => {
-    const timezonePattern = /^[A-Za-z0-9_\/+-:]+$/;
-    expect(attributes.timezone, `Timezone "${attributes.timezone}" does not match expected format`).to.match(timezonePattern);
-  });
-  
-  // Test 15: Verify type field value
-  test("[HP] - Data Consistency - should have correct type value - " + endpoint, () => {
-    expect(airport.type, `Airport type is "${airport.type}" but expected "${EXPECTED_AIRPORT_TYPE}"`).to.equal(EXPECTED_AIRPORT_TYPE);
-  });
-  
-  // Test 16: Validate required fields are not empty
-  test("[HP] - Required Fields - should not have empty required fields - " + endpoint, () => {
-    const requiredNonEmptyFields = ['id', 'name', 'city', 'country', 'iata'];
+  // Test 9: Data Integrity & Consistency
+  test(`[HP] - ${scenario} - Data Integrity - core fields validation`, () => {
+    expect(airport.type).to.equal(EXPECTED_AIRPORT_TYPE);
     
-    requiredNonEmptyFields.forEach(field => {
-      if (field === 'id') {
-        expect(airport[field], `Required field ${field} is empty`).to.not.be.empty;
-      } else {
-        expect(attributes[field], `Required field ${field} in attributes is empty`).to.not.be.empty;
-      }
+    const requiredNonEmpty = ['id', 'name', 'city', 'country', 'iata'];
+    requiredNonEmpty.forEach(field => {
+      const val = field === 'id' ? airport[field] : attributes[field];
+      expect(val, `${field} should not be empty`).to.not.be.empty;
     });
   });
   
-  // Test 17: Validate ID matches requested ID
-  test("[HP] - Data Integrity - returned airport ID should match requested ID - " + endpoint, () => {
+  // Test 10: ID Verification
+  test(`[HP] - ${scenario} - Data Integrity - ID match check`, () => {
     const requestedId = req.getUrl().split('/').pop();
-    expect(airport.id, `Returned airport ID "${airport.id}" does not match requested ID "${requestedId}"`).to.equal(requestedId);
+    expect(airport.id).to.equal(requestedId);
   });
   
-  // Test 18: Validate name is descriptive
-  test("[HP] - Data Quality - airport name should be descriptive - " + endpoint, () => {
-    expect(attributes.name.length, `Airport name "${attributes.name}" is too short (less than ${MIN_NAME_LENGTH} characters)`).to.be.greaterThan(MIN_NAME_LENGTH - 1);
-  });
-  
-  // Test 19: Validate city and country are not empty
-  test("[HP] - Data Quality - city and country should not be empty - " + endpoint, () => {
+  // Test 11: Data Quality
+  test(`[HP] - ${scenario} - Data Quality - text field validation`, () => {
+    expect(attributes.name.length).to.be.at.least(MIN_NAME_LENGTH);
     validateNonEmptyString(attributes.city, 'City');
     validateNonEmptyString(attributes.country, 'Country');
-  });
-  
-  // Test 20: Validate response does not contain array
-  test("[HP] - Response Structure - should return single airport object - " + endpoint, () => {
-    expect(body.data, 'Response data should be defined').to.exist;
-    expect(body.data, 'Should be an object').to.be.an('object');
-    expect(body.data, 'Should not be an array').to.not.be.an('array');
-    expect(body.data, 'Should have id property').to.have.property('id');
   });
 }
 

@@ -16,8 +16,8 @@ params:query {
 
 body:json {
   {
-    "email":"test@airportgap.com",
-    "password":"airportgappassword"
+    "email":"{{AG_email}}",
+    "password":"{{AG_password}}"
   }
 }
 
@@ -27,6 +27,7 @@ script:post-response {
 }
 
 tests {
+  console.log("Getting authentication token");
   bru.setNextRequest("02_[HP] POST /favorites")
 }
 

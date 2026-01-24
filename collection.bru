@@ -1,3 +1,60 @@
 auth {
   mode: none
 }
+
+vars:pre-request {
+  baseUrl: https://airportgap.com/api
+}
+
+script:pre-request {
+  const BASE_URL = "https://airportgap.com/api";
+  // HTTP Status Codes
+  const STATUS_OK = 200;
+  const STATUS_CREATED = 201;
+  const STATUS_NO_CONTENT = 204;
+  const STATUS_BAD_REQUEST = 400;
+  const STATUS_UNAUTHORIZED = 401;
+  const STATUS_FORBIDDEN = 403;
+  const STATUS_NOT_FOUND = 404;
+  const STATUS_UNPROCESSABLE = 422;
+  const STATUS_TOO_MANY_REQUESTS = 429;
+  const STATUS_SERVER_ERROR = 500;
+  
+  const MAX_RESPONSE_TIME_STANDARD = 2000;
+  
+  const ICAO_PATTERN = /^[A-Z]{4}$/;
+  const IATA_PATTERN = /^[A-Z]{3}$/;
+  const TIMEZONE_PATTERN = /^[A-Za-z_\/]+$/;
+  
+  // Ranges
+  const MIN_LATITUDE = -90;
+  const MAX_LATITUDE = 90;
+  const MIN_LONGITUDE = -180;
+  const MAX_LONGITUDE = 180;
+  const MIN_ALTITUDE = -1500;
+  const MAX_ALTITUDE = 30000;
+  
+  // Pagination
+  const DEFAULT_PAGE_LIMIT = 30;
+  
+  bru.setVar("BASE_URL", BASE_URL);
+  bru.setVar("STATUS_OK", STATUS_OK);
+  bru.setVar("STATUS_CREATED", STATUS_CREATED);
+  bru.setVar("STATUS_NO_CONTENT", STATUS_NO_CONTENT);
+  bru.setVar("STATUS_BAD_REQUEST", STATUS_BAD_REQUEST);
+  bru.setVar("STATUS_UNAUTHORIZED", STATUS_UNAUTHORIZED);
+  bru.setVar("STATUS_FORBIDDEN", STATUS_FORBIDDEN);
+  bru.setVar("STATUS_NOT_FOUND", STATUS_NOT_FOUND);
+  bru.setVar("STATUS_UNPROCESSABLE", STATUS_UNPROCESSABLE);
+  bru.setVar("MAX_RESPONSE_TIME_STANDARD", MAX_RESPONSE_TIME_STANDARD);
+  bru.setVar("IATA_PATTERN", IATA_PATTERN);
+  bru.setVar("ICAAO_PATTERN", ICAO_PATTERN);
+  bru.setVar("TIMEZONE_PATTERN", TIMEZONE_PATTERN);
+  bru.setVar("MIN_LATITUDE", MIN_LATITUDE);
+  bru.setVar("MAX_LATITUDE", MAX_LATITUDE);
+  bru.setVar("MIN_LONGITUDE", MIN_LONGITUDE);
+  bru.setVar("MAX_LONGITUDE", MAX_LONGITUDE);
+  bru.setVar("MIN_ALTITUDE", MIN_ALTITUDE);
+  bru.setVar("MAX_ALTITUDE", MAX_ALTITUDE);
+  bru.setVar("DEFAULT_PAGE_LIMIT", DEFAULT_PAGE_LIMIT);
+}
