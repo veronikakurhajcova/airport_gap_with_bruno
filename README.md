@@ -7,7 +7,7 @@ Professional API automation project demonstrating a complete **CRUD lifecycle** 
 ### 1. Functional Testing (Happy Path)
 * **Full CRUD Workflow:** Seamlessly testing `/airports` and authenticated `/favorites` endpoints.
 * **Dynamic Data Chaining:** Using `bru.setEnvVar()` to capture IDs and attributes from responses and injecting them into subsequent requests.
-* **Business Logic Validation:** * Verification of distance calculations.
+* **Business Logic Validation:** * Verification of distance calculations between airports.
     * IATA/ICAO code format validation using Regular Expressions (Regex).
     * GPS coordinate range checks and altitude realism.
 
@@ -16,10 +16,14 @@ Professional API automation project demonstrating a complete **CRUD lifecycle** 
 * **Geospatial Precision:** Using `.closeTo()` assertions with specific tolerances to handle floating-point precision in GPS coordinates.
 * **Contract Testing:** Comprehensive JSON Schema validation for nested objects (airport details, timezone, and notes).
 
-### 3. Negative & Security Testing
-* **Unauthorized Access:** Validating `401 Unauthorized` responses when the Bearer token is missing.
-* **Validation Errors:** Testing `422 Unprocessable Entity` for invalid airport codes or duplicate entries.
-* **Resource Safety:** Ensuring `404 Not Found` for non-existent resource IDs.
+### 3. Negative & Security Testing (Enhanced)
+* **Distance Logic Edge Cases:**
+    * **Missing Parameters:** Validating `422 Unprocessable Entity` when required `from` or `to` codes are missing.
+    * **Invalid Inputs:** Testing response behavior for non-existent IATA codes.
+    * **Zero Distance:** Verifying that distance between the same airport (e.g., KORD to KORD) returns a correct `0` value.
+* **Security & Authentication:** * **Unauthorized Access:** Strictly validating `401 Unauthorized` responses when the Bearer token is missing or invalid.
+    * **Validation Errors:** Testing `422 Unprocessable Entity` for duplicate entries or malformed data.
+* **Resource Safety:** Ensuring `404 Not Found` for non-existent resource IDs in the favorites module.
 
 ## 🔐 Security & Environment Setup
 
